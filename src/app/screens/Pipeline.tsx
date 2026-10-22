@@ -12,6 +12,7 @@ import {
 import { Panel, Label, Chip, ScreenHeader } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import {
+  EDGE_SIGHT_CALIB_URL,
   EDGE_SIGHT_DOCS_URL,
   EDGE_SIGHT_UI_URL,
   formatDwell,
@@ -129,7 +130,8 @@ export function Pipeline() {
           )}
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
             <ExtLink href={EDGE_SIGHT_UI_URL}>Ops UI :8501</ExtLink>
-            <ExtLink href={EDGE_SIGHT_DOCS_URL}>API docs :8000</ExtLink>
+            <ExtLink href={EDGE_SIGHT_CALIB_URL}>Calibration Studio :8000</ExtLink>
+            <ExtLink href={EDGE_SIGHT_DOCS_URL}>API docs</ExtLink>
           </div>
         </Panel>
 

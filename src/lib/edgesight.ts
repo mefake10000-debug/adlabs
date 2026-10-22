@@ -80,6 +80,8 @@ export type EdgeSightStatus = {
 export const EDGE_SIGHT_DEFAULT_URL = "http://localhost:8000"
 export const EDGE_SIGHT_UI_URL = "http://localhost:8501"
 export const EDGE_SIGHT_DOCS_URL = "http://localhost:8000/docs"
+/** FastAPI Calibration Studio (HTML at /). */
+export const EDGE_SIGHT_CALIB_URL = "http://localhost:8000/"
 
 export function formatDwell(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—"
