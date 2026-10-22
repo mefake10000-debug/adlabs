@@ -1,50 +1,21 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import {
   Crosshair, Radio, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Activity, Layers,
 } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
-import { useEdgeSightOptional } from "../../hooks/useEdgeSight"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
 
 const CALIB_URL = "http://localhost:8000/"
 const OPS_URL = "http://localhost:8501/"
-const HEALTH_URL = "/api/edgesight/health"
 const DOCS_URL = "http://localhost:8000/docs"
 
 const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
 const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
 const NEXT_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Integrate next" || r.maturity === "Partial").length
-
-type HealthState = "checking" | "live" | "down"
-
-function useEdgeHealth(pollMs = 6000) {
-  const [state, setState] = useState<HealthState>("checking")
-  const [detail, setDetail] = useState<string>("")
-
-  const probe = async () => {
-    try {
-      const res = await fetch(HEALTH_URL, { cache: "no-store" })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = (await res.json()) as { online?: boolean; service?: string; error?: string }
-      setState(data.online ? "live" : "down")
-      setDetail(data.online ? (data.service ?? "EdgeSight API") : (data.error ?? "EdgeSight offline"))
-    } catch {
-      setState("down")
-      setDetail("Start ADLabs-dev: docker compose up -d")
-    }
-  }
-
-  useEffect(() => {
-    void probe()
-    const t = setInterval(() => void probe(), pollMs)
-    return () => clearInterval(t)
-  }, [pollMs])
-
-  return { state, detail, refresh: probe }
-}
 
 function OpsFrame({
   title,
@@ -86,12 +57,16 @@ function OpsFrame({
 }
 
 export function LiveOps() {
-  const { state, detail, refresh } = useEdgeHealth()
-  const edge = useEdgeSightOptional()
-  const live = state === "live"
+  const edge = useEdgeSight()
+  const live = edge.online
+  const detail = live
+    ? edge.status?.health?.service ?? "EdgeSight API"
+    : edge.status?.error ?? "Start ADLabs-dev: docker compose up -d"
+  const refresh = edge.refresh
   const [tab, setTab] = useState<"calib" | "ops">("calib")
-  const cams = edge?.status?.cameras ?? []
-  const device = edge?.status?.device
+  const cams = edge.status?.cameras ?? []
+  const device = edge.status?.device
+  const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
 
   return (
     <div className="flex flex-col gap-6">

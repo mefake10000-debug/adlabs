@@ -66,7 +66,14 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       : baseKpis
   const funnel = period === "Today" ? FUNNEL.today : FUNNEL.week
   const liveStrip = [
-    { icon: Eye, label: "Stop rate", value: "7.5%", sub: "window ≥4s · demo" },
+    {
+      icon: Eye,
+      label: "Stop rate",
+      value: online && liveKpis.engagedRatio ? liveKpis.engagedRatio : "7.5%",
+      sub: online && liveKpis.engagedRatio
+        ? "engaged ratio · Partial (not window-stop)"
+        : "window ≥4s · demo (rule not shipped)",
+    },
     { icon: Users, label: "In store", value: `${occupancy.now}`, sub: `of ${occupancy.capacity}` },
     { icon: Clock, label: "Queue", value: `${occupancy.queue} · ${occupancy.avgWait}`, sub: "checkout wait" },
     {

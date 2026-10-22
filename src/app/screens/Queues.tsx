@@ -12,8 +12,7 @@ import { useEdgeSight } from "../../hooks/useEdgeSight"
 const QUEUE_KPI = BUSINESS_KPIS.find((k) => k.label === "Queue length")
 
 export function Queues() {
-  const { occupancy, trafficHours, sourceChip, status } = useEdgeSight()
-  const online = Boolean(status?.online)
+  const { occupancy, trafficHours, sourceChip, online, status, events } = useEdgeSight()
   const queueAlerts = ALERTS.filter(
     (a) =>
       /queue|wait|checkout|congestion|staff/i.test(a.message) ||
