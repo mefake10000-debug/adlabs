@@ -319,7 +319,7 @@ function SectionShell({
             <span className="h-px w-6" style={{ background: "rgba(139, 124, 246, 0.5)" }} aria-hidden />
             {kicker}
           </span>
-          <h2 className="mt-3 font-serif cosmic-text-3xl sm:cosmic-text-4xl font-semibold leading-[1.1] tracking-[-0.02em] cosmic-text">
+          <h2 className="mt-3 font-serif text-[34px] font-semibold leading-[1.1] tracking-[-0.02em] cosmic-text sm:text-[42px]">
             {title}
           </h2>
           {sub && <p className="mt-3 max-w-2xl cosmic-text-base leading-relaxed" style={{ color: "var(--cosmic-text-dim)" }}>{sub}</p>}
@@ -349,7 +349,7 @@ function PhaseHeader({
         </span>
         <span className="cosmic-text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--cosmic-violet)" }}>{kicker}</span>
       </div>
-      <h2 className="mt-3 font-serif cosmic-text-2xl sm:cosmic-text-3xl font-semibold leading-[1.15] tracking-[-0.02em] cosmic-text">
+      <h2 className="mt-3 font-serif text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] cosmic-text sm:text-[30px]">
         {title}
       </h2>
       <p className="mt-3 max-w-2xl cosmic-text-base leading-relaxed" style={{ color: "var(--cosmic-text-dim)" }}>{sub}</p>

@@ -230,18 +230,55 @@ html, body {
 }
 
 /* === UNIVERSAL TEXT UTILITIES === */
-.cosmic-text-2xs { font-size: var(--cosmic-text-2xs); line-height: 1.4; }
-.cosmic-text-xs { font-size: var(--cosmic-text-xs); line-height: 1.4; }
-.cosmic-text-sm { font-size: var(--cosmic-text-sm); line-height: 1.5; }
-.cosmic-text-base { font-size: var(--cosmic-text-base); line-height: 1.5; }
-.cosmic-text-lg { font-size: var(--cosmic-text-lg); line-height: 1.5; }
-.cosmic-text-xl { font-size: var(--cosmic-text-xl); line-height: 1.4; }
-.cosmic-text-2xl { font-size: var(--cosmic-text-2xl); line-height: 1.3; }
-.cosmic-text-3xl { font-size: var(--cosmic-text-3xl); line-height: 1.2; }
-.cosmic-text-4xl { font-size: var(--cosmic-text-4xl); line-height: 1.1; }
-.cosmic-text-5xl { font-size: var(--cosmic-text-5xl); line-height: 1.05; }
-.cosmic-text-6xl { font-size: var(--cosmic-text-6xl); line-height: 1.05; }
-.cosmic-text-7xl { font-size: var(--cosmic-text-7xl); line-height: 1; }
+@utility cosmic-text-2xs {
+  font-size: var(--cosmic-text-2xs);
+  line-height: 1.4;
+}
+@utility cosmic-text-xs {
+  font-size: var(--cosmic-text-xs);
+  line-height: 1.4;
+}
+@utility cosmic-text-sm {
+  font-size: var(--cosmic-text-sm);
+  line-height: 1.5;
+}
+@utility cosmic-text-base {
+  font-size: var(--cosmic-text-base);
+  line-height: 1.5;
+}
+@utility cosmic-text-lg {
+  font-size: var(--cosmic-text-lg);
+  line-height: 1.5;
+}
+@utility cosmic-text-xl {
+  font-size: var(--cosmic-text-xl);
+  line-height: 1.4;
+}
+@utility cosmic-text-2xl {
+  font-size: var(--cosmic-text-2xl);
+  line-height: 1.3;
+}
+@utility cosmic-text-3xl {
+  font-size: var(--cosmic-text-3xl);
+  line-height: 1.2;
+}
+@utility cosmic-text-4xl {
+  font-size: var(--cosmic-text-4xl);
+  line-height: 1.1;
+}
+@utility cosmic-text-5xl {
+  font-size: var(--cosmic-text-5xl);
+  line-height: 1.05;
+}
+@utility cosmic-text-6xl {
+  font-size: var(--cosmic-text-6xl);
+  line-height: 1.05;
+}
+@utility cosmic-text-7xl {
+  font-size: var(--cosmic-text-7xl);
+  line-height: 1;
+}
+.cosmic-text { color: var(--cosmic-text); }
 
 /* === UTILITY CLASSES === */
 .cosmic-glow { box-shadow: var(--cosmic-shadow-glow); }
