@@ -50,7 +50,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
               ...k,
               value: liveKpis.entries,
               deltaNote: "EdgeSight tripwire IN",
-              hint: "Entrance tripwire · live from localhost:8000",
+              hint: "Entrance tripwire · live via portal → EdgeSight",
             }
           }
           if (k.id === "dwell") {

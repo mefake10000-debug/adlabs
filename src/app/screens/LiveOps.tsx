@@ -1,32 +1,44 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import {
-  Crosshair, Radio, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Activity, Layers,
+  Crosshair, Radio, RefreshCw, CheckCircle2, AlertCircle, Activity, Layers, Video,
 } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
-
-const CALIB_URL = "http://localhost:8000/"
-const OPS_URL = "http://localhost:8501/"
-const DOCS_URL = "http://localhost:8000/docs"
+import {
+  EDGE_SIGHT_OPS_EMBED,
+  EDGE_SIGHT_PORTAL_CALIB,
+  EDGE_SIGHT_PORTAL_DOCS,
+  edgeSightStreamPath,
+} from "../../lib/edgesight"
 
 const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
 const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
 const NEXT_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Integrate next" || r.maturity === "Partial").length
 
+type PanelId = "video" | "calib" | "ops"
+
+function readPanelFromUrl(): PanelId {
+  if (typeof window === "undefined") return "video"
+  const q = new URLSearchParams(window.location.search).get("panel")
+  if (q === "calib" || q === "ops" || q === "video") return q
+  const path = window.location.pathname
+  if (path.endsWith("/calibrate")) return "calib"
+  if (path.endsWith("/ops")) return "ops"
+  return "video"
+}
+
 function OpsFrame({
   title,
   eyebrow,
-  href,
   live,
   children,
 }: {
   title: string
   eyebrow: string
-  href: string
   live: boolean
   children: ReactNode
 }) {
@@ -39,15 +51,7 @@ function OpsFrame({
           </p>
           <h2 className="font-inter cosmic-text-base font-bold text-[var(--app-text)]">{title}</h2>
         </div>
-        <Chip tone={live ? "live" : "neutral"}>{live ? "EdgeSight reachable" : "Offline · open when Docker is up"}</Chip>
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-line)] px-3 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-sub)] transition-colors hover:text-[var(--app-text)]"
-        >
-          Open tab <ExternalLink size={12} />
-        </a>
+        <Chip tone={live ? "live" : "neutral"}>{live ? "EdgeSight reachable" : "Offline · start Docker"}</Chip>
       </header>
       <div className="relative bg-[var(--app-raise)]" style={{ minHeight: 420 }}>
         {children}
@@ -63,10 +67,29 @@ export function LiveOps() {
     ? edge.status?.health?.service ?? "EdgeSight API"
     : edge.status?.error ?? "Start ADLabs-dev: docker compose up -d"
   const refresh = edge.refresh
-  const [tab, setTab] = useState<"calib" | "ops">("calib")
+  const [tab, setTab] = useState<PanelId>("video")
   const cams = edge.status?.cameras ?? []
   const device = edge.status?.device
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
+
+  const streamCam = useMemo(() => {
+    const fromLive = edge.status?.live?.camera_id
+    if (fromLive) return fromLive
+    return cams[0] ?? "cam_entrance_01"
+  }, [cams, edge.status?.live?.camera_id])
+
+  useEffect(() => {
+    setTab(readPanelFromUrl())
+  }, [])
+
+  const selectTab = (id: PanelId) => {
+    setTab(id)
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    url.pathname = "/dashboard/live"
+    url.searchParams.set("panel", id)
+    window.history.replaceState({}, "", url.toString())
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,7 +97,7 @@ export function LiveOps() {
         icon={Radio}
         eyebrow="Calibration / Live ops"
         title="EdgeSight live tools"
-        sub="Calibration Studio (:8000) + Streamlit ops (:8501). Same layout family as Models & EdgeSight — multi-cam switcher and draw tools are live APIs only."
+        sub="All tools stay on localhost:3000 — Calibration Studio and Streamlit run as Docker backends, proxied into this dashboard."
       >
         <Chip tone={live ? "live" : "gold"}>{live ? "API healthy" : state === "checking" ? "Checking…" : "API down"}</Chip>
         <button
@@ -100,12 +123,13 @@ export function LiveOps() {
         <p className="min-w-0 flex-1 font-inter cosmic-text-xs text-[var(--app-sub)]">
           <span className="font-semibold text-[var(--app-text)]">{detail}</span>
           {" · "}
-          Embeds are <strong className="font-semibold">live</strong> EdgeSight when Docker is up.
-          KPI tiles elsewhere blend live tripwire / queue / demographics with Organic Clothing Co. fixtures — maturity badges on Models screen.
+          Portal routes: <code className="font-mono text-[var(--app-text)]">/dashboard/live/calibrate</code>
           {" · "}
-          {DUAL_DEPLOYMENT.shared}
+          <code className="font-mono text-[var(--app-text)]">/dashboard/live/ops</code>
+          {" · "}
+          YOLO MJPEG + KPIs below. {DUAL_DEPLOYMENT.shared}
         </p>
-        <a href={DOCS_URL} target="_blank" rel="noreferrer" className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
+        <a href={EDGE_SIGHT_PORTAL_DOCS} className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
           API docs
         </a>
       </motion.div>
@@ -140,6 +164,7 @@ export function LiveOps() {
       <div className="flex flex-wrap gap-2">
         {(
           [
+            { id: "video" as const, label: "Live video + KPIs", icon: Video },
             { id: "calib" as const, label: "Calibration Studio", icon: Crosshair },
             { id: "ops" as const, label: "Ops UI (Streamlit)", icon: Activity },
           ]
@@ -147,7 +172,7 @@ export function LiveOps() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
             className="inline-flex items-center gap-2 rounded-full border px-3.5 py-2 font-inter cosmic-text-xs font-semibold transition-colors"
             style={{
               borderColor: tab === t.id ? "var(--app-accent)" : "var(--app-line)",
@@ -161,39 +186,44 @@ export function LiveOps() {
         ))}
       </div>
 
-      {tab === "calib" ? (
+      {tab === "video" ? (
+        <LiveVideoPanel
+          live={live}
+          streamCam={streamCam}
+          cams={cams}
+          edge={edge}
+        />
+      ) : tab === "calib" ? (
         <OpsFrame
-          eyebrow="localhost:8000"
+          eyebrow="/dashboard/live/calibrate → :8000"
           title="Calibration Studio"
-          href={CALIB_URL}
           live={live}
         >
           {live ? (
             <iframe
               title="EdgeSight Calibration Studio"
-              src={CALIB_URL}
+              src={EDGE_SIGHT_PORTAL_CALIB}
               className="h-[min(72vh,720px)] w-full border-0"
               allow="clipboard-read; clipboard-write"
             />
           ) : (
-            <OfflineHint url={CALIB_URL} name="Calibration Studio" />
+            <OfflineHint name="Calibration Studio" />
           )}
         </OpsFrame>
       ) : (
         <OpsFrame
-          eyebrow="localhost:8501"
+          eyebrow="/dashboard/live/ops → :8501"
           title="Streamlit operations UI"
-          href={OPS_URL}
           live={live}
         >
           {live ? (
             <iframe
               title="EdgeSight Streamlit ops"
-              src={OPS_URL}
+              src={EDGE_SIGHT_OPS_EMBED}
               className="h-[min(72vh,720px)] w-full border-0"
             />
           ) : (
-            <OfflineHint url={OPS_URL} name="Streamlit ops" />
+            <OfflineHint name="Streamlit ops" />
           )}
         </OpsFrame>
       )}
@@ -213,12 +243,13 @@ git checkout mefake/integration
 python scripts/download_models.py
 python scripts/download_pack_models.py
 docker compose up -d
-# optional pack mount:
-docker compose -f docker-compose.yml -f docker-compose.pack.yml up -d
 
-# Calibration  http://localhost:8000/
-# Streamlit    http://localhost:8501/
-# Website      http://localhost:3000/dashboard/live`}
+# Portal (only URL you need):
+#   http://localhost:3000/dashboard
+#   http://localhost:3000/dashboard/live
+# Backends (Docker only — proxied into the portal):
+#   Calibration  → /dashboard/live/calibrate  (:8000)
+#   Streamlit    → /dashboard/live/ops        (:8501)`}
         </pre>
         <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
           Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}
@@ -228,15 +259,114 @@ docker compose -f docker-compose.yml -f docker-compose.pack.yml up -d
   )
 }
 
-function OfflineHint({ url, name }: { url: string; name: string }) {
+function LiveVideoPanel({
+  live,
+  streamCam,
+  cams,
+  edge,
+}: {
+  live: boolean
+  streamCam: string
+  cams: string[]
+  edge: ReturnType<typeof useEdgeSight>
+}) {
+  const [cam, setCam] = useState(streamCam)
+  useEffect(() => {
+    setCam(streamCam)
+  }, [streamCam])
+
+  const kpis = edge.liveKpis
+  const occ = edge.occupancy
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <OpsFrame
+        eyebrow={`/api/v1/stream/${cam} · YOLO overlays`}
+        title="Live inference stream"
+        live={live}
+      >
+        {live ? (
+          <div className="flex flex-col">
+            {(cams.length > 1 || cam) && (
+              <div className="flex flex-wrap gap-2 border-b border-[var(--app-line)] px-4 py-3">
+                {(cams.length ? cams : [cam]).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setCam(id)}
+                    className="rounded-full border px-3 py-1 font-mono cosmic-text-2xs font-semibold"
+                    style={{
+                      borderColor: cam === id ? "var(--app-accent)" : "var(--app-line)",
+                      background: cam === id ? "var(--app-accent-soft)" : "transparent",
+                      color: cam === id ? "var(--app-accent)" : "var(--app-sub)",
+                    }}
+                  >
+                    {id}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={cam}
+              src={edgeSightStreamPath(cam)}
+              alt={`Live YOLO stream ${cam}`}
+              className="max-h-[min(64vh,640px)] w-full bg-black object-contain"
+            />
+          </div>
+        ) : (
+          <OfflineHint name="Live video stream" />
+        )}
+      </OpsFrame>
+
+      <Panel title="Live KPIs" sub="From EdgeSight /api/v1/live via portal proxy">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <Kpi label="Entries (tripwire)" value={kpis.entries} hint="Cumulative in-count" />
+          <Kpi label="Exits" value={kpis.exits} hint="Cumulative out-count" />
+          <Kpi label="Avg dwell" value={kpis.dwell} hint="Live rollup" />
+          <Kpi label="Occupancy · queue" value={`${occ.now} · ${occ.queue}`} hint={`Wait ${occ.avgWait}`} />
+          <Kpi
+            label="Engaged · facing"
+            value={
+              kpis.engagedRatio && kpis.facingRatio
+                ? `${kpis.engagedRatio} · ${kpis.facingRatio}`
+                : "—"
+            }
+            hint="Head-pose / dwell proxies"
+          />
+          <Kpi
+            label="Calibrated zones"
+            value={String(edge.calibratedZones.length)}
+            hint={`${edge.tripwireCount} tripwires`}
+          />
+        </div>
+        <p className="mt-4 font-inter cosmic-text-xs text-[var(--app-faint)]">
+          Draw zones in the Calibration tab — edits hot-reload into this stream. Peer realtime wiring shares the same{" "}
+          <code className="font-mono">/api/edgesight/status</code> store.
+        </p>
+      </Panel>
+    </div>
+  )
+}
+
+function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="rounded-xl border border-[var(--app-line)] px-3.5 py-3" style={{ background: "var(--app-raise)" }}>
+      <Label>{label}</Label>
+      <p className="mt-1.5 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{value}</p>
+      <p className="mt-0.5 font-inter cosmic-text-2xs text-[var(--app-faint)]">{hint}</p>
+    </div>
+  )
+}
+
+function OfflineHint({ name }: { name: string }) {
   return (
     <div className="flex h-[420px] flex-col items-center justify-center gap-3 px-6 text-center">
       <Radio size={28} className="text-[var(--app-faint)]" />
       <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{name} is offline</p>
       <p className="max-w-md font-inter cosmic-text-xs text-[var(--app-faint)]">
-        Start ADLabs-dev with Docker Compose, then refresh. You can also open{" "}
-        <a className="text-[var(--app-accent)] underline" href={url} target="_blank" rel="noreferrer">{url}</a>{" "}
-        directly once the stack is healthy.
+        Start ADLabs-dev with Docker Compose, then refresh this page. Stay on{" "}
+        <span className="font-mono text-[var(--app-sub)]">localhost:3000/dashboard/live</span> — backends are proxied in.
       </p>
     </div>
   )

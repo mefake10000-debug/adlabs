@@ -138,11 +138,35 @@ export type EdgeSightStatus = {
   history?: EdgeSightHistoryRow[]
 }
 
+/** Server-side Docker target (proxy destination). Browser code should prefer portal paths. */
 export const EDGE_SIGHT_DEFAULT_URL = "http://localhost:8000"
-export const EDGE_SIGHT_UI_URL = "http://localhost:8501"
-export const EDGE_SIGHT_DOCS_URL = "http://localhost:8000/docs"
-/** FastAPI Calibration Studio (HTML at /). */
-export const EDGE_SIGHT_CALIB_URL = "http://localhost:8000/"
+
+/**
+ * Portal paths — user-facing UX stays on localhost:3000.
+ * Calibrate is same-origin (Next rewrite → :8000). Ops iframe hits Streamlit
+ * at :8501 with matching baseUrlPath (WebSocket-safe); /dashboard/live/ops redirects into chrome.
+ */
+export const EDGE_SIGHT_PORTAL_CALIB = "/dashboard/live/calibrate"
+export const EDGE_SIGHT_PORTAL_OPS = "/dashboard/live/ops"
+export const EDGE_SIGHT_PORTAL_DOCS = "/docs"
+export const EDGE_SIGHT_PORTAL_LIVE = "/dashboard/live"
+/** Streamlit embed src — Docker :8501 with baseUrlPath aligned to portal route. */
+export const EDGE_SIGHT_OPS_EMBED =
+  process.env.NEXT_PUBLIC_EDGE_SIGHT_OPS_EMBED || "http://localhost:8501/dashboard/live/ops/"
+
+/** @deprecated Prefer EDGE_SIGHT_PORTAL_* */
+export const EDGE_SIGHT_UI_URL = EDGE_SIGHT_PORTAL_OPS
+export const EDGE_SIGHT_DOCS_URL = EDGE_SIGHT_PORTAL_DOCS
+export const EDGE_SIGHT_CALIB_URL = EDGE_SIGHT_PORTAL_CALIB
+
+/** MJPEG YOLO-overlay stream (proxied through :3000). */
+export function edgeSightStreamPath(cameraId: string): string {
+  return `/api/v1/stream/${encodeURIComponent(cameraId)}`
+}
+
+export function edgeSightSnapshotPath(cameraId: string): string {
+  return `/api/v1/snapshot/${encodeURIComponent(cameraId)}?t=${Date.now()}`
+}
 
 export function formatDwell(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "—"

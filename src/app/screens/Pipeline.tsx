@@ -13,9 +13,8 @@ import {
 import { Panel, Label, Chip, ScreenHeader } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import {
-  EDGE_SIGHT_CALIB_URL,
-  EDGE_SIGHT_DOCS_URL,
-  EDGE_SIGHT_UI_URL,
+  EDGE_SIGHT_PORTAL_DOCS,
+  EDGE_SIGHT_PORTAL_LIVE,
   formatDwell,
 } from "../../lib/edgesight"
 import {
@@ -65,7 +64,7 @@ export function Pipeline() {
         icon={Layers}
         eyebrow="Models pack · EdgeSight"
         title="Models & EdgeSight"
-        sub="Live CV from :8000 when Docker is up · full planned scope matrix below · pack weights segregated · Calibration / ops on Live ops."
+        sub="Live CV via portal proxy when Docker is up · full planned scope matrix below · pack weights segregated · Calibration / ops on Live ops."
       >
         <Chip tone={sourceChip.tone} title={sourceChip.title}>
           {sourceChip.label}
@@ -146,10 +145,11 @@ export function Pipeline() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
-            <ExtLink href="/dashboard/live">Calibration / Live ops</ExtLink>
-            <ExtLink href={EDGE_SIGHT_UI_URL}>Ops UI :8501</ExtLink>
-            <ExtLink href={EDGE_SIGHT_CALIB_URL}>Calibration Studio :8000</ExtLink>
-            <ExtLink href={EDGE_SIGHT_DOCS_URL}>API docs</ExtLink>
+            <ExtLink href={EDGE_SIGHT_PORTAL_LIVE}>Calibration / Live ops</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=video`}>Live video + KPIs</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=calib`}>Calibration Studio</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=ops`}>Ops UI</ExtLink>
+            <ExtLink href={EDGE_SIGHT_PORTAL_DOCS}>API docs</ExtLink>
           </div>
           {(status?.cameras?.length ?? 0) > 0 && (
             <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
