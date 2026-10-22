@@ -12,8 +12,8 @@ import {
   EDGE_SIGHT_OPS_EMBED,
   EDGE_SIGHT_PORTAL_CALIB,
   EDGE_SIGHT_PORTAL_DOCS,
-  edgeSightStreamPath,
 } from "../../lib/edgesight"
+import { LiveVision } from "../../components/LiveVision"
 
 const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
 const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
@@ -187,12 +187,7 @@ export function LiveOps() {
       </div>
 
       {tab === "video" ? (
-        <LiveVideoPanel
-          live={live}
-          streamCam={streamCam}
-          cams={cams}
-          edge={edge}
-        />
+        <LiveVision cameraId={streamCam} />
       ) : tab === "calib" ? (
         <OpsFrame
           eyebrow="/dashboard/live/calibrate → :8000"
@@ -255,106 +250,6 @@ docker compose up -d
           Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}
         </p>
       </Panel>
-    </div>
-  )
-}
-
-function LiveVideoPanel({
-  live,
-  streamCam,
-  cams,
-  edge,
-}: {
-  live: boolean
-  streamCam: string
-  cams: string[]
-  edge: ReturnType<typeof useEdgeSight>
-}) {
-  const [cam, setCam] = useState(streamCam)
-  useEffect(() => {
-    setCam(streamCam)
-  }, [streamCam])
-
-  const kpis = edge.liveKpis
-  const occ = edge.occupancy
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-      <OpsFrame
-        eyebrow={`/api/v1/stream/${cam} · YOLO overlays`}
-        title="Live inference stream"
-        live={live}
-      >
-        {live ? (
-          <div className="flex flex-col">
-            {(cams.length > 1 || cam) && (
-              <div className="flex flex-wrap gap-2 border-b border-[var(--app-line)] px-4 py-3">
-                {(cams.length ? cams : [cam]).map((id) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setCam(id)}
-                    className="rounded-full border px-3 py-1 font-mono cosmic-text-2xs font-semibold"
-                    style={{
-                      borderColor: cam === id ? "var(--app-accent)" : "var(--app-line)",
-                      background: cam === id ? "var(--app-accent-soft)" : "transparent",
-                      color: cam === id ? "var(--app-accent)" : "var(--app-sub)",
-                    }}
-                  >
-                    {id}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={cam}
-              src={edgeSightStreamPath(cam)}
-              alt={`Live YOLO stream ${cam}`}
-              className="max-h-[min(64vh,640px)] w-full bg-black object-contain"
-            />
-          </div>
-        ) : (
-          <OfflineHint name="Live video stream" />
-        )}
-      </OpsFrame>
-
-      <Panel title="Live KPIs" sub="From EdgeSight /api/v1/live via portal proxy">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <Kpi label="Entries (tripwire)" value={kpis.entries} hint="Cumulative in-count" />
-          <Kpi label="Exits" value={kpis.exits} hint="Cumulative out-count" />
-          <Kpi label="Avg dwell" value={kpis.dwell} hint="Live rollup" />
-          <Kpi label="Occupancy · queue" value={`${occ.now} · ${occ.queue}`} hint={`Wait ${occ.avgWait}`} />
-          <Kpi
-            label="Engaged · facing"
-            value={
-              kpis.engagedRatio && kpis.facingRatio
-                ? `${kpis.engagedRatio} · ${kpis.facingRatio}`
-                : "—"
-            }
-            hint="Head-pose / dwell proxies"
-          />
-          <Kpi
-            label="Calibrated zones"
-            value={String(edge.calibratedZones.length)}
-            hint={`${edge.tripwireCount} tripwires`}
-          />
-        </div>
-        <p className="mt-4 font-inter cosmic-text-xs text-[var(--app-faint)]">
-          Draw zones in the Calibration tab — edits hot-reload into this stream. Peer realtime wiring shares the same{" "}
-          <code className="font-mono">/api/edgesight/status</code> store.
-        </p>
-      </Panel>
-    </div>
-  )
-}
-
-function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div className="rounded-xl border border-[var(--app-line)] px-3.5 py-3" style={{ background: "var(--app-raise)" }}>
-      <Label>{label}</Label>
-      <p className="mt-1.5 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{value}</p>
-      <p className="mt-0.5 font-inter cosmic-text-2xs text-[var(--app-faint)]">{hint}</p>
     </div>
   )
 }

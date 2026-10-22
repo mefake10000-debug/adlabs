@@ -11,6 +11,39 @@ export type EdgeSightLive = {
   avg_queue_wait_seconds: number
   queue_alert_active: boolean
   last_updated: string
+  /** Frame-synced active customer tracks (matches YOLO MJPEG HUD). */
+  people_now?: number
+  staff_now?: number
+  infer_fps?: number
+  decode_fps?: number
+  source?: "live_snapshot" | "telemetry_rollups" | string
+  occupancy_mode?: string
+  occupancy_note?: string
+  per_camera?: {
+    camera_id: string
+    occupancy: number
+    queue_length: number
+    avg_dwell_seconds?: number
+    in_count?: number
+    out_count?: number
+    last_rollup_at?: string
+    infer_fps?: number
+    source?: string
+  }[]
+  models?: {
+    person_detector?: string
+    tracker?: string
+    pose?: boolean
+    face_boxes?: boolean
+    face_identity?: boolean
+    note?: string
+  }
+  engagement?: {
+    avg_attention_score?: number
+    facing_ratio?: number
+    engaged_ratio?: number
+    group_count?: number
+  }
 }
 
 export type EdgeSightSummary = {
@@ -31,6 +64,12 @@ export type EdgeSightDevice = {
   pipeline_fps: number
   status: string
   server_time: string
+  clock_sync?: {
+    ntp_ok: boolean | null
+    max_estimated_skew_ms: number | null
+    note?: string
+  }
+  reid?: { cross_cam_fusion?: boolean; note?: string }
 }
 
 export type EdgeSightDemographics = {
