@@ -109,6 +109,44 @@ export function PilotModal({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
               </div>
               <div>
+                <label htmlFor="pf-problem" className="mb-1.5 block cosmic-text-xs font-semibold text-[#c4c4cc]">
+                  {f.fields.problem.label}
+                </label>
+                <div className="relative">
+                  <select id="pf-problem" name="problem" className={`${inputCls} appearance-none pr-10`} defaultValue={f.fields.problem.options[0]}>
+                    {f.fields.problem.options.map((o) => (
+                      <option key={o} className="bg-[#12121a] text-[#f5f5f7]">{o}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#86868b]" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="pf-budget" className="mb-1.5 block cosmic-text-xs font-semibold text-[#c4c4cc]">
+                  {f.fields.budget.label}
+                </label>
+                <div className="relative">
+                  <select id="pf-budget" name="budget" className={`${inputCls} appearance-none pr-10`} defaultValue={f.fields.budget.options[0]}>
+                    {f.fields.budget.options.map((o) => (
+                      <option key={o} className="bg-[#12121a] text-[#f5f5f7]">{o}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[#86868b]" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="pf-detail" className="mb-1.5 block cosmic-text-xs font-semibold text-[#c4c4cc]">
+                  {f.fields.detail.label}
+                </label>
+                <textarea
+                  id="pf-detail"
+                  name="detail"
+                  rows={3}
+                  placeholder={f.fields.detail.placeholder}
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
+              <div>
                 <label htmlFor="pf-email" className="mb-1.5 block cosmic-text-xs font-semibold text-[#c4c4cc]">
                   {f.fields.email.label}
                 </label>

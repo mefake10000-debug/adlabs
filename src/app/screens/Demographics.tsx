@@ -1,10 +1,12 @@
 import { Users } from "lucide-react"
 import { Panel, Label, ScreenHeader, Chip } from "../ui"
 import { DonutChart, HBars, DayHourHeatmap } from "../charts"
-import { DEMOGRAPHICS, DAY_HOUR_HEATMAP, SIMULATED_NOTE, PEER_NOTE } from "../../data/dashboard"
+import { DEMOGRAPHICS, DAY_HOUR_HEATMAP, PEER_NOTE } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 export function Demographics() {
-  const g = DEMOGRAPHICS
+  const { demographicsLive, sourceChip } = useEdgeSight()
+  const g = demographicsLive ?? DEMOGRAPHICS
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader
@@ -13,7 +15,7 @@ export function Demographics() {
         title="Age & groups"
         sub="k-anonymous aggregates only (age/gender ViT + proximity groups). Never identity."
       >
-        <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
       </ScreenHeader>
 
       <div className="grid gap-5 xl:grid-cols-3">
@@ -84,7 +86,7 @@ export function Demographics() {
         </Panel>
       </div>
 
-      <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">{SIMULATED_NOTE} · {PEER_NOTE}</p>
+      <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">{sourceChip.title} · {PEER_NOTE}</p>
     </div>
   )
 }

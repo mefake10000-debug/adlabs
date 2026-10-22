@@ -50,6 +50,7 @@ export function Nav({ onPilot }: { onPilot: () => void }) {
 
   useEffect(() => {
     if (!onHome) {
+      // oxlint-disable-next-line react/set-state-in-effect
       setActive("")
       return
     }
@@ -101,25 +102,13 @@ export function Nav({ onPilot }: { onPilot: () => void }) {
 
   const closeAll = () => setOpen(false)
 
-  const isExported = typeof window !== "undefined" && typeof (window as unknown as { __ADL?: string }).__ADL === "string"
-  const fileRel = (href: string) => {
-    const base = (window as unknown as { __ADL?: string }).__ADL ?? ""
-    const hashIdx = href.indexOf("#")
-    const hash = hashIdx === -1 ? "" : href.slice(hashIdx)
-    const path = href.slice(0, hashIdx === -1 ? href.length : hashIdx).replace(/^\/+|\/+$/g, "")
-    return path ? `${base}${path}/index.html${hash}` : `${base}index.html${hash}`
-  }
-
   const go = (href: string) => {
     closeAll()
     if (href.startsWith("#")) {
-      if (!isExported && !onHome) router.push("/" + href)
-      else if (onHome) scrollToHash(href.slice(1))
-      else window.location.assign(`${fileRel("")}${href}`)
-    } else if (!isExported) {
-      router.push(href)
+      if (!onHome) router.push("/" + href)
+      else scrollToHash(href.slice(1))
     } else {
-      window.location.assign(fileRel(href))
+      router.push(href)
     }
   }
 
@@ -128,8 +117,6 @@ export function Nav({ onPilot }: { onPilot: () => void }) {
     if (onHome) {
       history.replaceState(null, "", window.location.pathname)
       window.scrollTo({ top: 0, behavior: "smooth" })
-    } else if (isExported) {
-      window.location.href = fileRel("/")
     } else {
       router.push("/")
     }

@@ -23,7 +23,6 @@ import {
   Trophy,
   Box,
   LayoutDashboard,
-  FlaskConical,
   Activity,
   Eye,
   Lock,
@@ -1274,7 +1273,7 @@ function Seat({ answers, set: _set }: { answers: DiscoveryAnswers; set: Setter }
                     </dd>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <dt className="cosmic-text-xs text-[#a1a1aa>">Camera stack</dt>
+                    <dt className="cosmic-text-xs text-[#a1a1aa]">Camera stack</dt>
                     <dd className="max-w-[60%] text-right cosmic-text-xs font-medium text-[#f5f5f7]">
                       {answers.cameras ? CAMERA_STACK.find((c) => c.id === answers.cameras)?.label : "—"}
                     </dd>

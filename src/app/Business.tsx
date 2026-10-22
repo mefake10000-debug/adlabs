@@ -1,5 +1,6 @@
 import { Wallet, ShoppingBag, Percent, Megaphone, IndianRupee, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react"
 import { BUSINESS_KPIS, OCCUPANCY } from "../data/dashboard"
+import { useEdgeSightOptional } from "../hooks/useEdgeSight"
 import { Panel, Label } from "./ui"
 
 const ICONS: Record<string, typeof Wallet> = {
@@ -40,8 +41,15 @@ export function BusinessKpis() {
   )
 }
 
-export function OccupancyGauge({ compact = false }: { compact?: boolean }) {
-  const o = OCCUPANCY
+export function OccupancyGauge({
+  compact = false,
+  occupancy,
+}: {
+  compact?: boolean
+  occupancy?: typeof OCCUPANCY
+}) {
+  const edge = useEdgeSightOptional()
+  const o = occupancy ?? edge?.occupancy ?? OCCUPANCY
   const pct = Math.min((o.now / o.capacity) * 100, 100)
   const r = 42
   const c = 2 * Math.PI * r

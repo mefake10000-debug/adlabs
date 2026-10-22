@@ -1,5 +1,5 @@
 import { ArrowRight, BadgeCheck, Megaphone, MapPin, Wallet } from "lucide-react"
-import { Panel, Label, Chip, InfoTip, ScreenHeader } from "../ui"
+import { Panel, Label, Chip, ScreenHeader } from "../ui"
 import { ADS, AD_FLOW, SIMULATED_NOTE, PEER_NOTE } from "../../data/dashboard"
 
 export function Ads() {
@@ -62,6 +62,11 @@ export function Ads() {
       <div className="grid gap-5 xl:grid-cols-3">
         {ADS.map((ad) => {
           const best = ad.redirect.reduce((a, b) => (b.pct > a.pct ? b : a))
+          const spendNumber = parseInt(ad.spend.replace(/[^0-9]/g, ""), 10)
+          const costPerWalkin =
+            Number.isFinite(spendNumber) && ad.attributedWalkins > 0
+              ? `cost per attributed walk-in ≈ $${Math.round(spendNumber / ad.attributedWalkins)}`
+              : "cost per attributed walk-in — pending spend data"
           return (
             <Panel key={ad.id} title={ad.name} action={<Chip tone="gold">{ad.channel}</Chip>} verified="Attributed · 7-day window">
               <div className="flex items-start gap-3">
@@ -115,7 +120,7 @@ export function Ads() {
 
               <p className="mt-3.5 flex items-start gap-2 border-t border-[var(--app-line)] pt-3 font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
                 <Wallet size={11} className="mt-0.5 shrink-0 text-[var(--app-gold)]" />
-                {ad.uplift} · cost per attributed walk-in ≈ ${Math.round((parseInt(ad.spend.replace(/[^0-9]/g, "")) ) / ad.attributedWalkins)}
+                {ad.uplift} · {costPerWalkin}
               </p>
             </Panel>
           )
@@ -143,8 +148,4 @@ export function Ads() {
       </Panel>
     </div>
   )
-}
-
-export function AdInfoTip() {
-  return <InfoTip text="Attribution windows: 30 min after ad sighting. Same-day only — no cross-day matching." />
 }

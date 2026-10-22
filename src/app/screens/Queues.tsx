@@ -3,18 +3,17 @@ import { Panel, Label, Chip, ScreenHeader, DeltaPill } from "../ui"
 import { OccupancyGauge } from "../Business"
 import { AreaChart } from "../charts"
 import {
-  OCCUPANCY,
-  TRAFFIC_HOURS,
   ALERTS,
   TENANT,
-  SIMULATED_NOTE,
   BUSINESS_KPIS,
 } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 const QUEUE_KPI = BUSINESS_KPIS.find((k) => k.label === "Queue length")
-const WAIT_KPI = { label: "Avg queue wait", value: OCCUPANCY.avgWait, delta: "checkout zone", tone: "flat" as const }
 
 export function Queues() {
+  const { occupancy, trafficHours, sourceChip, status } = useEdgeSight()
+  const online = Boolean(status?.online)
   const queueAlerts = ALERTS.filter(
     (a) =>
       /queue|wait|checkout|congestion|staff/i.test(a.message) ||
@@ -31,43 +30,47 @@ export function Queues() {
         sub={`${TENANT.store} · length, wait, and congestion from the checkout zone.`}
       >
         <Chip tone="live">Live</Chip>
-        <Chip tone="neutral" title={SIMULATED_NOTE}>
-          Demo
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>
+          {sourceChip.label}
         </Chip>
       </ScreenHeader>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Panel>
           <Label>Queue length</Label>
-          <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">{OCCUPANCY.queue}</p>
+          <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">{occupancy.queue}</p>
           <div className="mt-2">
             <DeltaPill delta={QUEUE_KPI?.delta ?? "stable"} tone="flat" note={QUEUE_KPI?.note} />
           </div>
         </Panel>
         <Panel>
           <Label>Avg wait</Label>
-          <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">{WAIT_KPI.value}</p>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{occupancy.avgWait}</p>
           <p className="mt-2 font-inter cosmic-text-xs text-[var(--app-faint)]">Mean dwell in queue zone</p>
         </Panel>
         <Panel>
           <Label>People in store</Label>
           <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">
-            {OCCUPANCY.now}
-            <span className="cosmic-text-sm text-[var(--app-faint)]">/{OCCUPANCY.capacity}</span>
+            {occupancy.now}
+            <span className="cosmic-text-sm text-[var(--app-faint)]">/{occupancy.capacity}</span>
           </p>
-          <p className="mt-2 font-inter cosmic-text-xs text-[var(--app-faint)]">{OCCUPANCY.level}% of capacity</p>
+          <p className="mt-2 font-inter cosmic-text-xs text-[var(--app-faint)]">{occupancy.level}% of capacity</p>
         </Panel>
         <Panel>
           <Label>Peak window</Label>
-          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{OCCUPANCY.peakWindow}</p>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{occupancy.peakWindow}</p>
           <p className="mt-2 font-inter cosmic-text-xs text-[var(--app-faint)]">Staff to this curve</p>
         </Panel>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_1.4fr]">
-        <OccupancyGauge />
-        <Panel title="Hourly entries" action={<Label>today</Label>} verified="Tripwire">
-          <AreaChart data={TRAFFIC_HOURS} peaks={[{ from: "15", to: "17" }]} height={190} />
+        <OccupancyGauge occupancy={occupancy} />
+        <Panel
+          title="Hourly entries"
+          action={<Label>today</Label>}
+          verified={online ? "EdgeSight tripwire" : "Tripwire · demo"}
+        >
+          <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} height={190} />
           <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
             Queue pressure tracks entry peaks — 15:00–17:00 is the staffing window.
           </p>

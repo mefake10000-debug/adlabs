@@ -676,7 +676,7 @@ export const INTELLIGENCE = {
       desc: "Footfall and queue forecasts for staffing; improves with history.",
     },
   ],
-  footer: "See each view in the dashboard — labeled by maturity.",
+  footer: "Dashboard wires EdgeSight live (:8000) when Docker is up — Models & EdgeSight screen shows the pack. Maturity labels stay honest.",
   cta: "Open dashboard",
 }
 
@@ -684,8 +684,8 @@ export const METRICS: { index: string; kicker: string; h2: string; sub: string; 
   index: "03",
   kicker: "Outcomes",
   h2: "Six signals the stack can produce.",
-  sub: "Grounded in EdgeSight (YOLO26s + ByteTrack + tripwires/zones). Demo numbers for Organic Clothing Co., Bandra.",
-  note: "Stop rate needs a window zone (≥4s). Engaged dwell is head-facing + dwell — not pupil gaze. No POS sales claims.",
+  sub: "Grounded in EdgeSight (YOLO26s + ByteTrack + tripwires/zones). Live tripwire/queue/dwell when localhost:8000 is up; otherwise Organic Clothing Co. showcase.",
+  note: "Stop rate needs a window zone (≥4s) — still Partial. Engaged dwell is head-facing + dwell — not pupil gaze. No POS sales claims.",
   items: [
     {
       title: "Window stop rate",

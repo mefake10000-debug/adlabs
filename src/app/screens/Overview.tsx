@@ -11,9 +11,10 @@ import {
 import { Panel, Label, DeltaPill, PeerDot, Segmented, Chip, ScreenHeader, MetricLabel } from "../ui"
 import { AreaChart, FunnelBars, Sparkline } from "../charts"
 import {
-  KPIS, FUNNEL, TRAFFIC_HOURS, TENANT,
-  STORES, BRIEF, SIMULATED_NOTE, CAMPAIGNS, OCCUPANCY, ZONES,
+  KPIS, FUNNEL, TENANT,
+  STORES, BRIEF, CAMPAIGNS, ZONES,
 } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 const AFT_CAMPAIGN = CAMPAIGNS[0]
 
@@ -23,13 +24,6 @@ const KPI_ICONS: Record<string, { icon: typeof Eye; tint: string }> = {
   walkins: { icon: DoorOpen, tint: "var(--app-pos)" },
   dwell: { icon: Timer, tint: "var(--app-accent)" },
 }
-
-const LIVE_STRIP = [
-  { icon: Eye, label: "Stop rate", value: "7.5%", sub: "window ≥4s" },
-  { icon: Users, label: "In store", value: `${OCCUPANCY.now}`, sub: `of ${OCCUPANCY.capacity}` },
-  { icon: Clock, label: "Queue", value: `${OCCUPANCY.queue} · ${OCCUPANCY.avgWait}`, sub: "checkout wait" },
-  { icon: Clock3, label: "Peak", value: "16:30", sub: "– 18:45" },
-]
 
 const QUICK = [
   { icon: TrendingUp, label: "Entrances", screen: "storefront" as const },
@@ -45,8 +39,45 @@ const TOP_ZONES = [...ZONES].sort((a, b) => b.traffic - a.traffic).slice(0, 4)
 export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [period, setPeriod] = useState<"Today" | "This week">("Today")
   const loading = useMountLoader()
-  const kpis = period === "Today" ? KPIS.today : KPIS.week
+  const { occupancy, trafficHours, sourceChip, liveKpis, status } = useEdgeSight()
+  const online = Boolean(status?.online && status.live)
+  const baseKpis = period === "Today" ? KPIS.today : KPIS.week
+  const kpis =
+    period === "Today" && online
+      ? baseKpis.map((k) => {
+          if (k.id === "walkins") {
+            return {
+              ...k,
+              value: liveKpis.entries,
+              deltaNote: "EdgeSight tripwire IN",
+              hint: "Entrance tripwire · live from localhost:8000",
+            }
+          }
+          if (k.id === "dwell") {
+            return {
+              ...k,
+              value: liveKpis.dwell,
+              deltaNote: "EdgeSight avg dwell",
+              hint: "Zone / time-in-frame dwell · live",
+            }
+          }
+          return k
+        })
+      : baseKpis
   const funnel = period === "Today" ? FUNNEL.today : FUNNEL.week
+  const liveStrip = [
+    { icon: Eye, label: "Stop rate", value: "7.5%", sub: "window ≥4s · demo" },
+    { icon: Users, label: "In store", value: `${occupancy.now}`, sub: `of ${occupancy.capacity}` },
+    { icon: Clock, label: "Queue", value: `${occupancy.queue} · ${occupancy.avgWait}`, sub: "checkout wait" },
+    {
+      icon: Clock3,
+      label: "Peak",
+      value: occupancy.peakWindow.split("–")[0]?.trim() || "—",
+      sub: occupancy.peakWindow.includes("–")
+        ? `– ${occupancy.peakWindow.split("–")[1]?.trim()}`
+        : "rollup",
+    },
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,13 +87,13 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         sub={`${TENANT.name} · ${TENANT.store} — entries, stop rate, dwell, queue.`}
       >
         <Chip tone="live">Live</Chip>
-        <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         <Segmented options={["Today", "This week"] as const} value={period} onChange={setPeriod} />
       </ScreenHeader>
 
       {/* What’s happening now */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {LIVE_STRIP.map((s) => {
+        {liveStrip.map((s) => {
           const Icon = s.icon
           return (
             <div
@@ -170,13 +201,17 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
             </div>
           </div>
         </section>
-        <OccupancyGauge />
+        <OccupancyGauge occupancy={occupancy} />
       </div>
 
       {/* Traffic + funnel */}
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <Panel title="Hourly traffic" action={<Label>{period}</Label>} verified="Camera rollups">
-          <AreaChart data={TRAFFIC_HOURS} peaks={[{ from: "15", to: "17" }]} />
+        <Panel
+          title="Hourly traffic"
+          action={<Label>{period}</Label>}
+          verified={online ? "EdgeSight rollups" : "Camera rollups · demo"}
+        >
+          <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} />
         </Panel>
         <Panel title="Pass → stop → enter" action={<Label>{period}</Label>}>
           <FunnelBars stages={funnel} />
@@ -265,7 +300,15 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       </Panel>
 
       <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-        {TENANT.name} · {TENANT.store} · {SIMULATED_NOTE}
+        {TENANT.name} · {TENANT.store} · {sourceChip.title}
+        {" · "}
+        <button
+          type="button"
+          className="text-[var(--app-accent)] hover:underline"
+          onClick={() => onNavigate?.("pipeline")}
+        >
+          Models & EdgeSight →
+        </button>
       </p>
     </div>
   )

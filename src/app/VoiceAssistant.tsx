@@ -5,7 +5,12 @@ import {
   PREDICTIONS, WEEKLY_HISTORY, INSIGHTS, TENANT,
 } from "../data/dashboard"
 
-type Screen = "overview" | "storefront" | "stores" | "store" | "campaigns" | "zones" | "queues" | "brief" | "manager" | "compare" | "history" | "demographics" | "product" | "alerts" | "tour" | "ads"
+type Screen =
+  | "overview" | "storefront" | "stores" | "store" | "campaigns" | "zones" | "queues"
+  | "brief" | "manager" | "compare" | "history" | "demographics" | "product"
+  | "alerts" | "tour" | "ads"
+  | "retail" | "visitor" | "storeIntel" | "shelf" | "patterns" | "forecasts"
+  | "staff" | "safety"
 type Msg = { role: "user" | "ai"; text: string; screen?: Screen; storeId?: string; storeName?: string }
 
 /* ---------------- Intent engine over REAL dashboard data ---------------- */
@@ -122,7 +127,7 @@ function answer(q: string): { text: string; screen?: Screen; storeId?: string } 
   // Predictions / forecast
   if (t.includes("predict") || t.includes("forecast") || t.includes("future") || t.includes("next week") || t.includes("will")) {
     const p = PREDICTIONS.map((x) => `${x.metric}: ${x.current} → ${x.projected} by ${x.timeframe} (${x.confidence})`).join(" · ")
-    return { text: `Projections: ${p}. Capture rate keeps compounding — keep the rotation.`, screen: "history" }
+    return { text: `Projections: ${p}. Capture rate keeps compounding — keep the rotation.`, screen: "forecasts" }
   }
 
   // History / trend / weeks
@@ -136,6 +141,42 @@ function answer(q: string): { text: string; screen?: Screen; storeId?: string } 
   // Demographics
   if (t.includes("demographic") || t.includes("age") || t.includes("cohort") || t.includes("solo") || t.includes("pair")) {
     return { text: `28–44 year olds drive 62% of attention. Solo visitors 58% vs pairs 42%. Peak window 16:30–18:45. Solos browse deep; pairs decide — different conversations needed.`, screen: "demographics" }
+  }
+
+  // Staffing
+  if (t.includes("staff") || t.includes("schedule") || t.includes("shift")) {
+    return { text: `Staffing follows the attention curve — 1 head per 800 peak-hour visits, with hot hours mapped per day. Open the staff screen to see the plan.`, screen: "staff" }
+  }
+
+  // Patterns / motifs
+  if (t.includes("pattern") || t.includes("motif") || t.includes("repeat")) {
+    return { text: `Motifs surface once you have 3+ weeks of rollups — the same dead-zone dip repeating after 18:00, the Saturday pair-browsing cluster. Open patterns to see what's holding.`, screen: "patterns" }
+  }
+
+  // Shelf / display interest
+  if (t.includes("shelf") || t.includes("display interest") || t.includes("fixture") || t.includes("touch")) {
+    const hero = { name: "Hero Handbag Vitrine", gaze: "8.4s", touch: "42%" }
+    return { text: `Top fixture: ${hero.name} — ${hero.gaze} gaze, ${hero.touch} touch. Jewellery holds attention longest (9m 45s); premium retail is quickest. Gaze maps desire — put your next hero in the sightline.`, screen: "shelf" }
+  }
+
+  // Retail intelligence
+  if (t.includes("retail intel") || t.includes("funnel") || t.includes("peak window")) {
+    return { text: `The physical funnel this week: pass → stop → enter → engage, with peak windows mapped to staffing. Retail intelligence is where the week reads as one story.`, screen: "retail" }
+  }
+
+  // Visitor intelligence
+  if (t.includes("journey") || t.includes("dwell path") || t.includes("cohort path")) {
+    return { text: `Visitor journeys trace where groups wander — entry → vitrine → seating is the strongest repeat path. Open visitor intelligence for the cohort split and journeys.`, screen: "visitor" }
+  }
+
+  // Store intelligence
+  if (t.includes("under-lit") || t.includes("dead zone")) {
+    return { text: `Same as the zone view, framed for the owner: what's under-lit, what's dead, what to relight first. Store intelligence lists the moves.`, screen: "storeIntel" }
+  }
+
+  // Safety cautions
+  if (t.includes("safety") || t.includes("caution") || t.includes("loss")) {
+    return { text: `Safety & loss-risk cautions live on the owner screen — each flags what to do about it. It reads with honest CV-vs-ops labels.`, screen: "safety" }
   }
 
   // Product / gaze

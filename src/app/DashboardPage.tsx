@@ -7,12 +7,13 @@ import {
   Sun, Moon, Play, Presentation, ArrowLeft, ShieldCheck,
   BarChart3, Users, Package, Sparkles, History as HistoryIcon, Search,
   Eye, Timer, ShoppingBag, Building2, Repeat, LineChart as LineIcon,
-  UserCog, ShieldAlert,
+  UserCog, ShieldAlert, Layers,
 } from "lucide-react"
 import Link from "next/link"
 import { Logo } from "../components/Logo"
 import { Chip, Segmented } from "./ui"
-import { TENANT, SIMULATED_NOTE, ALERTS } from "../data/dashboard"
+import { TENANT, ALERTS } from "../data/dashboard"
+import { EdgeSightProvider, useEdgeSight } from "../hooks/useEdgeSight"
 import { Overview } from "./screens/Overview"
 import { Stores, StoreDetail } from "./screens/Stores"
 import { Campaigns } from "./screens/Campaigns"
@@ -36,6 +37,7 @@ import { Patterns } from "./screens/Patterns"
 import { Forecasts } from "./screens/Forecasts"
 import { Staff } from "./screens/Staff"
 import { Safety } from "./screens/Safety"
+import { Pipeline } from "./screens/Pipeline"
 import { PresentMode } from "./PresentMode"
 import { VoiceAssistant } from "./VoiceAssistant"
 import { CmdPalette } from "./CmdPalette"
@@ -65,6 +67,7 @@ type Screen =
   | "forecasts"
   | "staff"
   | "safety"
+  | "pipeline"
 
 type Role = "Brand" | "Store"
 type Theme = "light" | "dark"
@@ -91,6 +94,7 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
       { id: "zones", label: "Floor zones", icon: Map, color: "#FF9500" },
       { id: "queues", label: "Queues", icon: Timer, color: "#5ac8fa" },
       { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
+      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
     ],
   },
   {
@@ -136,6 +140,7 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
       { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
       { id: "staff", label: "Staff", icon: UserCog, color: "#34C759" },
       { id: "safety", label: "Safety · cautions", icon: ShieldAlert, color: "#FF9500" },
+      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
     ],
   },
   {
@@ -172,9 +177,19 @@ const PAGE_TITLES: Record<Screen, string> = {
   forecasts: "Forecasts",
   staff: "Staff",
   safety: "Safety · cautions",
+  pipeline: "Models & EdgeSight",
 }
 
 export function DashboardPage() {
+  return (
+    <EdgeSightProvider>
+      <DashboardShell />
+    </EdgeSightProvider>
+  )
+}
+
+function DashboardShell() {
+  const { sourceChip } = useEdgeSight()
   const [theme, setTheme] = useState<Theme>("dark")
   const [role, setRole] = useState<Role>("Brand")
   const [screen, setScreen] = useState<Screen>("overview")
@@ -201,6 +216,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     const tick = () => setNow(new Date())
+    // oxlint-disable-next-line react/set-state-in-effect
     tick()
     const t = setInterval(tick, 1000 * 30)
     return () => clearInterval(t)
@@ -213,7 +229,7 @@ export function DashboardPage() {
   const changeRole = (r: Role) => {
     setRole(r)
     const storeOk: Screen[] = [
-      "stores", "store", "manager", "queues", "zones", "alerts", "tour", "staff", "safety",
+      "stores", "store", "manager", "queues", "zones", "alerts", "tour", "staff", "safety", "pipeline",
     ]
     if (r === "Store" && !storeOk.includes(screen)) {
       setScreen("manager")
@@ -251,6 +267,7 @@ export function DashboardPage() {
       case "forecasts": return <Forecasts />
       case "staff": return <Staff />
       case "safety": return <Safety />
+      case "pipeline": return <Pipeline />
       default: return <Overview />
     }
   }
@@ -379,7 +396,7 @@ export function DashboardPage() {
                 >
                   {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
                 </button>
-                <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+                <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 border-t border-[var(--app-line)] px-5 py-2 sm:px-7">

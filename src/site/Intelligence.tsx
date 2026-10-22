@@ -72,13 +72,21 @@ export function Intelligence() {
         <Reveal delay={0.16}>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0a12] px-5 py-3.5">
             <p className="cosmic-text-sm text-[#a1a1aa]">{d.footer}</p>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 rounded-full bg-[#8B7CF6] px-4 py-2 cosmic-text-sm font-semibold text-white transition-colors hover:bg-[#6E5CE6]"
-            >
-              {d.cta}
-              <ArrowRight size={15} strokeWidth={2.4} />
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-full bg-[#8B7CF6] px-4 py-2 cosmic-text-sm font-semibold text-white transition-colors hover:bg-[#6E5CE6]"
+              >
+                {d.cta}
+                <ArrowRight size={15} strokeWidth={2.4} />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 cosmic-text-sm font-semibold text-[#c4b5fd] transition-colors hover:border-[#8B7CF6]/50 hover:text-white"
+              >
+                Models & EdgeSight
+              </Link>
+            </div>
           </div>
         </Reveal>
       </div>
