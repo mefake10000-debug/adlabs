@@ -9,7 +9,9 @@ import type { ImageCallout, ImageZone } from "../../components/AnnotatedImage"
 import { ZONES, TENANT, SIMULATED_NOTE, ZONE_METRIC_NOTE } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { formatWait } from "../../lib/edgesight"
+import { displayMetric } from "../../lib/data-freshness"
 import { LiveVision } from "../../components/LiveVision"
+import { DataBadge, NoDataState } from "../../components/DataBadge"
 
 const FLOOR_MARKS: Record<string, { zone: ImageZone; callout: ImageCallout }> = {
   H3: {
@@ -33,7 +35,18 @@ const FLOOR_MARKS: Record<string, { zone: ImageZone; callout: ImageCallout }> = 
 const CARD_CODES = ["H3", "L2", "A1", "F1"] as const
 
 export function Zones() {
-  const { calibratedZones, occupancy, sourceChip, online, tripwireCount, status } = useEdgeSight()
+  const {
+    calibratedZones,
+    occupancy,
+    sourceChip,
+    online,
+    tripwireCount,
+    status,
+    sectionBadges,
+    primaryCameraState,
+    primaryCameraId,
+  } = useEdgeSight()
+  const dwellZones = primaryCameraState?.dwell_zones
   const [selected, setSelected] = useState<string>("H3")
   const sorted = [...ZONES].sort((a, b) => b.traffic - a.traffic).slice(0, 6)
   const flagged = ZONES.filter((z) => z.flag)
@@ -57,6 +70,8 @@ export function Zones() {
         title="Floor zones"
         sub="Entered zone + dwell — tap a card or mark to focus. Zones overlap."
       >
+        <DataBadge badge={sectionBadges.floor_zones} />
+        <DataBadge badge={sectionBadges.heatmap} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
       </ScreenHeader>
@@ -65,14 +80,46 @@ export function Zones() {
 
       {online && (
         <Panel
+          title="Dwell zones · live/state"
+          sub={`Primary ${primaryCameraId ?? "—"} · dwell_zones[] @ 2s — not marketing floor codes.`}
+          action={<DataBadge badge={sectionBadges.floor_zones} />}
+          verified="live/state.cameras[].dwell_zones"
+        >
+          {dwellZones == null ? (
+            <NoDataState label="dwell_zones null" detail="No dwell_zones key on live/state — empty, not zero." />
+          ) : dwellZones.length === 0 ? (
+            <NoDataState
+              label="No dwell zones on this camera"
+              detail="Draw dwell polygons in Calibration Studio. Queue/staff zones appear under Queues / Staff."
+            />
+          ) : (
+            <ul className="grid gap-2.5 sm:grid-cols-2">
+              {dwellZones.map((z) => (
+                <li key={z.id} className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono cosmic-text-2xs text-[var(--app-accent)]">{z.type}</span>
+                    <span className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{z.name}</span>
+                  </div>
+                  <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
+                    occ {displayMetric(z.occupancy)} · dwell {z.avg_dwell_seconds != null ? formatWait(z.avg_dwell_seconds) : "—"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
+      {online && (
+        <Panel
           title="EdgeSight calibrated zones"
-          sub="From cameras.yaml via /api/v1/config/cameras — not the marketing floor codes below."
+          sub="From cameras.yaml via /api/v1/config/cameras — geometry truth."
           action={<Label>{calibratedZones.length} zones · {tripwireCount} tripwires</Label>}
           verified="Calibration Studio polygons"
         >
           {calibratedZones.length === 0 ? (
             <p className="font-inter cosmic-text-sm text-[var(--app-sub)]">
-              No zones on live cameras. Draw queue / staff / dwell polygons in Calibration Studio (:8000).
+              No zones on live cameras. Draw queue / staff / dwell polygons in Calibration Studio.
             </p>
           ) : (
             <ul className="grid gap-2.5 sm:grid-cols-2">
@@ -88,7 +135,7 @@ export function Zones() {
                   <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
                     {z.cameraName} · {z.points} polygon pts
                     {z.type === "queue"
-                      ? ` · live queue ${occupancy.queue} · wait ${occupancy.avgWait}`
+                      ? ` · live queue ${displayMetric(status?.live?.queue_length)} · wait ${occupancy.avgWait}`
                       : z.type === "staff"
                         ? " · sticky staff exclusion after min dwell"
                         : ""}
@@ -98,9 +145,31 @@ export function Zones() {
             </ul>
           )}
           <p className="mt-3 font-inter cosmic-text-2xs text-[var(--app-faint)]">
-            Occupancy now {occupancy.now} · last updated {status?.live?.last_updated ?? "—"} · wait{" "}
-            {formatWait(status?.live?.avg_queue_wait_seconds ?? 0)}
+            Occupancy now {displayMetric(status?.live?.people_now ?? status?.live?.net_occupancy)} · last updated{" "}
+            {status?.live?.last_updated ?? "—"} · wait{" "}
+            {status?.live?.avg_queue_wait_seconds != null
+              ? formatWait(status.live.avg_queue_wait_seconds)
+              : "—"}
           </p>
+        </Panel>
+      )}
+
+      {online && primaryCameraId && (
+        <Panel
+          title="Floor heatmap"
+          sub={`/api/v1/heatmap/${primaryCameraId} · 10s`}
+          action={<DataBadge badge={sectionBadges.heatmap} />}
+        >
+          {sectionBadges.heatmap.tone === "no-data" ? (
+            <NoDataState label="Heatmap unavailable" detail={sectionBadges.heatmap.title} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/v1/heatmap/${encodeURIComponent(primaryCameraId)}`}
+              alt={`Heatmap ${primaryCameraId}`}
+              className="w-full rounded-xl border border-[var(--app-line)] object-contain"
+            />
+          )}
         </Panel>
       )}
 

@@ -21,6 +21,15 @@ import {
   mapAgeBands,
 } from "../lib/edgesight"
 import {
+  evaluateAllSectionBadges,
+  displayMetric,
+  type DataBadge,
+  type LiveState,
+  type LiveStateCamera,
+  type SectionId,
+  SECTION_CADENCE_MS,
+} from "../lib/data-freshness"
+import {
   ALERTS,
   BUSINESS_KPIS,
   DEMOGRAPHICS,
@@ -30,10 +39,12 @@ import {
   type OwnerAlert,
 } from "../data/dashboard"
 
-/** Heavy aggregate poll (summary, demographics, history…). */
-const POLL_MS = 5000
-/** Fast live KPI poll — occupancy/queue/entries tick with YOLO detections. */
-const LIVE_POLL_MS = 1000
+/** Heavy aggregate poll (summary, demographics, products, heatmap check…). Matrix: Today/heatmap 10s. */
+const POLL_MS = 10_000
+/** Fast live/state poll — tripwires, zones, queues, staffing, engagement. */
+const LIVE_POLL_MS = 2_000
+// Keep matrix cadences referenced so drift is obvious in review.
+void SECTION_CADENCE_MS
 
 export type LiveAlert = OwnerAlert & { live: boolean }
 
@@ -48,10 +59,14 @@ export type CalibratedZoneRow = {
 
 export type EdgeSightContextValue = {
   status: EdgeSightStatus | null
+  liveState: LiveState | null
   loading: boolean
   online: boolean
   refresh: () => void
   occupancy: typeof OCCUPANCY
+  /** Null when live people_now is null — never invent zero. */
+  peopleNow: number | null
+  queueLength: number | null
   trafficHours: typeof TRAFFIC_HOURS
   demographicsLive: typeof DEMOGRAPHICS | null
   sourceChip: { tone: "live" | "neutral"; label: string; title: string }
@@ -66,6 +81,9 @@ export type EdgeSightContextValue = {
   calibratedZones: CalibratedZoneRow[]
   tripwireCount: number
   cameraConfigs: EdgeSightCameraConfig[]
+  /** First cameras.yaml cam until picker. */
+  primaryCameraId: string | null
+  primaryCameraState: LiveStateCamera | null
   events: EdgeSightEvent[]
   history: EdgeSightHistoryRow[]
   historyOccupancy: { h: string; v: number }[]
@@ -73,6 +91,8 @@ export type EdgeSightContextValue = {
   alertsLive: LiveAlert[]
   staffLive: typeof STAFF_INTEL
   businessLive: typeof BUSINESS_KPIS
+  sectionBadges: Record<SectionId, DataBadge>
+  connectivityAgeSeconds: number | null
 }
 
 export const EdgeSightContext = createContext<EdgeSightContextValue | null>(null)
@@ -91,6 +111,7 @@ export function useEdgeSightOptional(): EdgeSightContextValue | null {
 
 function buildValue(
   status: EdgeSightStatus | null,
+  liveState: LiveState | null,
   loading: boolean,
   refresh: () => void,
 ): EdgeSightContextValue {
@@ -99,18 +120,40 @@ function buildValue(
   const summary = status?.summary
   const eng = status?.engagement
   const configs = status?.cameraConfigs ?? []
+  const primaryCameraId =
+    liveState?.primary_camera_id ??
+    status?.cameras?.[0] ??
+    configs[0]?.id ??
+    null
+  const primaryCameraState =
+    liveState?.cameras.find((c) => c.camera_id === primaryCameraId) ??
+    liveState?.cameras[0] ??
+    null
 
-  const peopleNow = online && live
-    ? Math.max(0, live.people_now ?? live.net_occupancy)
+  // Null-safe occupancy: when online, never fall back to demo OCCUPANCY.now
+  const peopleNow: number | null = online
+    ? (live?.people_now ?? live?.net_occupancy ?? primaryCameraState?.counts.people_now ?? null)
     : OCCUPANCY.now
+  const queueLength: number | null = online
+    ? (primaryCameraState?.queues?.[0]?.queue_length ?? live?.queue_length ?? null)
+    : OCCUPANCY.queue
+
   const occupancy: typeof OCCUPANCY =
-    online && live
+    online
       ? {
-          now: peopleNow,
+          now: peopleNow ?? 0, // gauge needs a number; UI should prefer peopleNow/displayMetric
           capacity: OCCUPANCY.capacity,
-          level: Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
-          queue: live.queue_length,
-          avgWait: formatWait(live.avg_queue_wait_seconds),
+          level:
+            peopleNow == null
+              ? 0
+              : Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
+          queue: queueLength ?? 0,
+          avgWait:
+            live?.avg_queue_wait_seconds != null
+              ? formatWait(live.avg_queue_wait_seconds)
+              : primaryCameraState?.queues?.[0]?.avg_wait_seconds != null
+                ? formatWait(primaryCameraState.queues[0].avg_wait_seconds)
+                : "—",
           peakWindow: formatPeakHour(summary?.peak_period?.hour) || OCCUPANCY.peakWindow,
           trend: OCCUPANCY.trend,
         }
@@ -128,39 +171,42 @@ function buildValue(
     demo.age_bands &&
     demo.age_bands.length > 0
   ) {
-    const female =
-      demo.gender_split?.find((g) => g.gender === "female")?.pct ?? DEMOGRAPHICS.gender.female
-    const male =
-      demo.gender_split?.find((g) => g.gender === "male")?.pct ?? DEMOGRAPHICS.gender.male
+    const female = demo.gender_split?.find((g) => g.gender === "female")?.pct
+    const male = demo.gender_split?.find((g) => g.gender === "male")?.pct
     demographicsLive = {
       ...DEMOGRAPHICS,
       ages: mapAgeBands(demo.age_bands),
-      gender: { female: Math.round(female), male: Math.round(male) },
+      gender: {
+        female: female != null ? Math.round(female) : DEMOGRAPHICS.gender.female,
+        male: male != null ? Math.round(male) : DEMOGRAPHICS.gender.male,
+      },
       note: demo.note ?? `k ≥ ${demo.k_anonymity} · sample ${demo.sample_size} · EdgeSight live`,
       peak: occupancy.peakWindow,
     }
   } else if (online && demo && demo.gender_split?.length) {
-    // Age bands may be k-suppressed; still surface gender when publishable.
-    const female =
-      demo.gender_split.find((g) => g.gender === "female")?.pct ?? DEMOGRAPHICS.gender.female
-    const male =
-      demo.gender_split.find((g) => g.gender === "male")?.pct ?? DEMOGRAPHICS.gender.male
+    const female = demo.gender_split.find((g) => g.gender === "female")?.pct
+    const male = demo.gender_split.find((g) => g.gender === "male")?.pct
     demographicsLive = {
       ...DEMOGRAPHICS,
-      gender: { female: Math.round(female), male: Math.round(male) },
+      gender: {
+        female: female != null ? Math.round(female) : DEMOGRAPHICS.gender.female,
+        male: male != null ? Math.round(male) : DEMOGRAPHICS.gender.male,
+      },
       note:
         demo.note ??
         `k ≥ ${demo.k_anonymity} · sample ${demo.sample_size} · age bands withheld · EdgeSight live`,
       peak: occupancy.peakWindow,
     }
   }
+  // When online but demographics key null → demographicsLive stays null (NO-DATA), not demo fixtures.
 
   const liveSource = live?.source === "live_snapshot" ? "YOLO snapshot" : "rollups"
+  const age = liveState?.age_seconds
   const sourceChip = online
     ? {
         tone: "live" as const,
         label: live?.source === "live_snapshot" ? "YOLO live" : "EdgeSight live",
-        title: `Wired to ${status?.baseUrl} · ${liveSource} · FPS ${live?.infer_fps ?? status?.device?.pipeline_fps ?? "—"} · live poll ${LIVE_POLL_MS / 1000}s`,
+        title: `Wired to ${status?.baseUrl} · ${liveSource} · FPS ${live?.infer_fps ?? status?.device?.pipeline_fps ?? "—"} · state age ${age ?? "—"}s · live poll ${LIVE_POLL_MS / 1000}s`,
       }
     : {
         tone: "neutral" as const,
@@ -170,19 +216,24 @@ function buildValue(
           : "Simulated showcase · Organic Clothing Co. · Bandra (start EdgeSight on :8000 for live)",
       }
 
-  const snapEng = live?.engagement
+  const snapEng = primaryCameraState?.engagement ?? live?.engagement
   const liveKpis = {
     entries: live
       ? live.total_visitors.toLocaleString("en-IN")
       : summary
         ? summary.total_visitors.toLocaleString("en-IN")
-        : "39",
+        : "—",
     exits: live
       ? live.total_exits.toLocaleString("en-IN")
       : summary
         ? summary.total_exits.toLocaleString("en-IN")
         : "—",
-    dwell: live ? formatDwell(live.avg_dwell_seconds) : "6m 12s",
+    dwell:
+      live && live.avg_dwell_seconds != null
+        ? formatDwell(live.avg_dwell_seconds)
+        : online
+          ? "—"
+          : "6m 12s",
     engagedRatio: eng
       ? `${Math.round(eng.avg_engaged_ratio * 100)}%`
       : snapEng?.engaged_ratio != null
@@ -206,24 +257,32 @@ function buildValue(
 
   const staffZones = calibratedZones.filter((z) => z.type === "staff")
   const queueZones = calibratedZones.filter((z) => z.type === "queue")
+  const staffVisible = primaryCameraState?.counts.staff_visible ?? live?.staff_now ?? null
+  const staffTagged = primaryCameraState?.counts.staff_tagged ?? null
 
   const staffLive: typeof STAFF_INTEL = online
     ? {
         ...STAFF_INTEL,
-        visitorsNow: occupancy.now,
-        staffShare: "—",
-        onFloor: staffZones.length > 0 ? STAFF_INTEL.onFloor : 0,
+        visitorsNow: peopleNow ?? STAFF_INTEL.visitorsNow,
+        staffShare:
+          staffVisible != null && peopleNow != null && peopleNow > 0
+            ? `${Math.round((staffVisible / (peopleNow + staffVisible)) * 100)}%`
+            : "—",
+        // Keep numeric field for layout; Staff screen renders displayMetric(staffVisible) for honesty.
+        onFloor: staffVisible ?? 0,
         method:
-          staffZones.length > 0
-            ? `Staff polygon calibrated (${staffZones.map((z) => z.name).join(", ")}) · headcount API not exposed — tagging excludes staff from customer metrics`
-            : "No staff zone in cameras.yaml — draw one in Calibration Studio",
+          staffVisible != null || staffTagged != null
+            ? `staff_visible ${displayMetric(staffVisible)} · tagged ${displayMetric(staffTagged)} · sticky staff polygons`
+            : staffZones.length > 0
+              ? `Staff polygon calibrated (${staffZones.map((z) => z.name).join(", ")}) · counts null on live/state`
+              : "No staff zone in cameras.yaml — draw one in Calibration Studio",
         zones:
           staffZones.length > 0
             ? staffZones.map((z) => ({
                 code: z.id.slice(-4).toUpperCase(),
                 name: z.name,
                 staffMin: "1+",
-                present: true,
+                present: staffTagged != null ? staffTagged > 0 : staffVisible != null ? staffVisible > 0 : false,
                 note: `${z.cameraName} · polygon ${z.points} pts · sticky staff tag after min dwell`,
               }))
             : STAFF_INTEL.zones.map((z) => ({ ...z, note: `${z.note} · demo (no staff zone live)` })),
@@ -242,7 +301,7 @@ function buildValue(
           category: "ops",
           zone: queueZones[0]?.name ?? "Checkout",
           title: "Queue congestion (live)",
-          message: `Length ${live.queue_length}, wait ${formatWait(live.avg_queue_wait_seconds)} — EdgeSight queue_alert_active.`,
+          message: `Length ${displayMetric(queueLength)}, wait ${occupancy.avgWait} — EdgeSight queue_alert_active.`,
           time: "now",
           action: "Open second till or pull floor staff to checkout",
           screen: "queues",
@@ -274,10 +333,10 @@ function buildValue(
         },
         {
           label: "People in store",
-          value: String(occupancy.now),
-          delta: `${occupancy.level}% of capacity`,
+          value: displayMetric(peopleNow),
+          delta: peopleNow != null ? `${occupancy.level}% of capacity` : "NO-DATA",
           tone: "flat",
-          note: "Net occupancy (sum of per-cam rollups)",
+          note: "Active tracks (sum of per-cam) — null stays —",
           iconHint: "basket",
         },
         {
@@ -290,7 +349,7 @@ function buildValue(
         },
         {
           label: "Queue length",
-          value: String(occupancy.queue),
+          value: displayMetric(queueLength),
           delta: `wait ${occupancy.avgWait}`,
           tone: live.queue_alert_active ? "neg" : "flat",
           note: queueZones[0] ? `${queueZones[0].name} · ≥5s dwell` : "Queue zone",
@@ -309,30 +368,58 @@ function buildValue(
       ]
     : BUSINESS_KPIS
 
+  const sectionBadges = evaluateAllSectionBadges({
+    online,
+    state: liveState,
+    live: live
+      ? {
+          people_now: live.people_now,
+          net_occupancy: live.net_occupancy,
+          total_visitors: live.total_visitors,
+          queue_length: live.queue_length,
+          source: live.source,
+          models: live.models ?? null,
+          engagement: live.engagement ?? null,
+        }
+      : null,
+    heatmapOk: status?.heatmapOk ?? null,
+    productsAnalytics: status?.products,
+    demographics: status?.demographics,
+    opsReachable: online,
+  })
+
   return {
     status,
+    liveState,
     loading,
     online,
     refresh,
     occupancy,
+    peopleNow: online ? peopleNow : OCCUPANCY.now,
+    queueLength: online ? queueLength : OCCUPANCY.queue,
     trafficHours,
-    demographicsLive,
+    demographicsLive: online ? demographicsLive : DEMOGRAPHICS,
     sourceChip,
     liveKpis,
     calibratedZones,
     tripwireCount: countTripwires(configs),
     cameraConfigs: configs,
+    primaryCameraId,
+    primaryCameraState,
     events: status?.events ?? [],
     history: status?.history ?? [],
     historyOccupancy: historyToOccupancySeries(status?.history),
     alertsLive,
     staffLive,
     businessLive,
+    sectionBadges,
+    connectivityAgeSeconds: liveState?.age_seconds ?? null,
   }
 }
 
 export function EdgeSightProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<EdgeSightStatus | null>(null)
+  const [liveState, setLiveState] = useState<LiveState | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(() => {
@@ -360,7 +447,7 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  /** High-frequency patch: only /api/v1/live so occupancy/queue tick with detections. */
+  /** High-frequency patch: /api/v1/live + live/state (per-cam snapshots). */
   const refreshLive = useCallback(() => {
     let cancelled = false
     ;(async () => {
@@ -370,9 +457,11 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
         const data = (await res.json()) as {
           online?: boolean
           live?: EdgeSightStatus["live"]
+          state?: LiveState
           fetchedAt?: string
         }
         if (cancelled || !data.live) return
+        if (data.state) setLiveState(data.state)
         setStatus((prev) => {
           if (!prev?.online && !data.online) return prev
           return {
@@ -384,6 +473,7 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
             online: data.online ?? prev?.online ?? true,
             fetchedAt: data.fetchedAt ?? new Date().toISOString(),
             live: data.live,
+            cameras: data.state?.cameras.map((c) => c.camera_id) ?? prev?.cameras,
           }
         })
       } catch {
@@ -413,8 +503,8 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
   }, [refresh, refreshLive])
 
   const value = useMemo(
-    () => buildValue(status, loading, () => { refresh() }),
-    [status, loading, refresh],
+    () => buildValue(status, liveState, loading, () => { refresh() }),
+    [status, liveState, loading, refresh],
   )
 
   return <EdgeSightContext.Provider value={value}>{children}</EdgeSightContext.Provider>

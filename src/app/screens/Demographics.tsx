@@ -3,10 +3,13 @@ import { Panel, Label, ScreenHeader, Chip } from "../ui"
 import { DonutChart, HBars, DayHourHeatmap } from "../charts"
 import { DEMOGRAPHICS, DAY_HOUR_HEATMAP, PEER_NOTE } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { DataBadge, NoDataState } from "../../components/DataBadge"
 
 export function Demographics() {
-  const { demographicsLive, sourceChip } = useEdgeSight()
-  const g = demographicsLive ?? DEMOGRAPHICS
+  const { demographicsLive, sourceChip, online, sectionBadges } = useEdgeSight()
+  // Online + null demographics → empty (NO-DATA). Offline → demo fixtures.
+  const g = online ? demographicsLive : DEMOGRAPHICS
+  const noLiveDemo = online && !demographicsLive
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader
@@ -15,8 +18,17 @@ export function Demographics() {
         title="Age & groups"
         sub="k-anonymous aggregates only (age/gender ViT + proximity groups). Never identity."
       >
+        <DataBadge badge={sectionBadges.demographics} />
+        <DataBadge badge={sectionBadges.engagement} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
       </ScreenHeader>
+
+      {noLiveDemo && (
+        <NoDataState
+          label="Demographics unavailable"
+          detail={sectionBadges.demographics.title}
+        />
+      )}
 
       <div className="grid gap-5 xl:grid-cols-3">
         <Panel
@@ -25,13 +37,17 @@ export function Demographics() {
           sub="YuNet + age/gender ViT · withheld if cohort &lt; 10"
           info="Anonymised gender inference — aggregates only, no identity."
         >
-          <DonutChart
-            data={[
-              { label: "Female", pct: g.gender.female },
-              { label: "Male", pct: g.gender.male },
-            ]}
-            size={160}
-          />
+          {g ? (
+            <DonutChart
+              data={[
+                { label: "Female", pct: g.gender.female },
+                { label: "Male", pct: g.gender.male },
+              ]}
+              size={160}
+            />
+          ) : (
+            <NoDataState label="gender_split null" />
+          )}
         </Panel>
 
         <Panel
@@ -39,13 +55,17 @@ export function Demographics() {
           sub="Proximity grouping — geometry only, no faces"
           info="Sustained proximity between tracks (groups.py)."
         >
-          <DonutChart
-            data={[
-              { label: "Individual", pct: g.party.individual },
-              { label: "Group", pct: g.party.group },
-            ]}
-            size={160}
-          />
+          {g ? (
+            <DonutChart
+              data={[
+                { label: "Individual", pct: g.party.individual },
+                { label: "Group", pct: g.party.group },
+              ]}
+              size={160}
+            />
+          ) : (
+            <NoDataState label="party split null" detail="Live API does not publish party ratios yet." />
+          )}
         </Panel>
 
         <Panel
@@ -53,14 +73,20 @@ export function Demographics() {
           sub="Solo vs pair within groups"
           info="Same proximity stack — useful for staffing pairs vs solos."
         >
-          <DonutChart
-            data={[
-              { label: "Solo", pct: g.dynamics.solo },
-              { label: "Pair", pct: g.dynamics.pair },
-            ]}
-            size={160}
-          />
-          <p className="mt-4 font-inter cosmic-text-xs text-[var(--app-faint)]">Peak window: {g.peak}</p>
+          {g ? (
+            <>
+              <DonutChart
+                data={[
+                  { label: "Solo", pct: g.dynamics.solo },
+                  { label: "Pair", pct: g.dynamics.pair },
+                ]}
+                size={160}
+              />
+              <p className="mt-4 font-inter cosmic-text-xs text-[var(--app-faint)]">Peak window: {g.peak}</p>
+            </>
+          ) : (
+            <NoDataState label="group dynamics null" />
+          )}
         </Panel>
       </div>
 
@@ -71,8 +97,14 @@ export function Demographics() {
           sub="Coarse UI bands mapped from model age buckets"
           info="Aggregated age cohorts — k-anonymous."
         >
-          <HBars items={g.ages.map((a) => ({ label: a.band, pct: a.pct }))} />
-          <p className="mt-4 font-inter cosmic-text-2xs text-[var(--app-faint)]">{g.note}</p>
+          {g ? (
+            <>
+              <HBars items={g.ages.map((a) => ({ label: a.band, pct: a.pct }))} />
+              <p className="mt-4 font-inter cosmic-text-2xs text-[var(--app-faint)]">{g.note}</p>
+            </>
+          ) : (
+            <NoDataState label="age_bands null" />
+          )}
         </Panel>
 
         <Panel

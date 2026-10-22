@@ -16,6 +16,8 @@ import {
 } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { LiveVision } from "../../components/LiveVision"
+import { DataBadge } from "../../components/DataBadge"
+import { displayMetric } from "../../lib/data-freshness"
 
 const AFT_CAMPAIGN = CAMPAIGNS[0]
 
@@ -40,7 +42,17 @@ const TOP_ZONES = [...ZONES].sort((a, b) => b.traffic - a.traffic).slice(0, 4)
 export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void }) {
   const [period, setPeriod] = useState<"Today" | "This week">("Today")
   const loading = useMountLoader()
-  const { occupancy, trafficHours, sourceChip, liveKpis, status } = useEdgeSight()
+  const {
+    occupancy,
+    trafficHours,
+    sourceChip,
+    liveKpis,
+    status,
+    peopleNow,
+    queueLength,
+    sectionBadges,
+    connectivityAgeSeconds,
+  } = useEdgeSight()
   const online = Boolean(status?.online && status.live)
   const baseKpis = period === "Today" ? KPIS.today : KPIS.week
   const kpis =
@@ -62,6 +74,16 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
               hint: "Zone / time-in-frame dwell · live",
             }
           }
+          if (k.id === "stop") {
+            return {
+              ...k,
+              value: liveKpis.engagedRatio ?? "—",
+              deltaNote: liveKpis.engagedRatio ? "engaged ratio · not window-stop" : "NO-DATA",
+              hint: liveKpis.engagedRatio
+                ? "Engagement proxy — window-stop rule not shipped"
+                : "engagement null — empty, not demo 7.5%",
+            }
+          }
           return k
         })
       : baseKpis
@@ -69,21 +91,30 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
   const liveStrip = [
     {
       icon: Eye,
-      label: "Stop rate",
-      value: online && liveKpis.engagedRatio ? liveKpis.engagedRatio : "7.5%",
-      sub: online && liveKpis.engagedRatio
-        ? "engaged ratio · Partial (not window-stop)"
-        : "window ≥4s · demo (rule not shipped)",
+      label: "Engaged",
+      value: online ? (liveKpis.engagedRatio ?? "—") : "7.5%",
+      sub: online
+        ? liveKpis.engagedRatio
+          ? "engaged ratio · Partial (not window-stop)"
+          : "NO-DATA · engagement null"
+        : "window ≥4s · demo (offline)",
     },
     {
       icon: Users,
       label: "In store",
-      value: `${occupancy.now}`,
+      value: online ? displayMetric(peopleNow) : `${occupancy.now}`,
       sub: online && status?.live?.source === "live_snapshot"
         ? "active tracks · YOLO"
         : `of ${occupancy.capacity}`,
     },
-    { icon: Clock, label: "Queue", value: `${occupancy.queue} · ${occupancy.avgWait}`, sub: "checkout wait" },
+    {
+      icon: Clock,
+      label: "Queue",
+      value: online
+        ? `${displayMetric(queueLength)} · ${occupancy.avgWait}`
+        : `${occupancy.queue} · ${occupancy.avgWait}`,
+      sub: "checkout wait",
+    },
     {
       icon: Clock3,
       label: "Peak",
@@ -101,8 +132,14 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         title="Today"
         sub={`${TENANT.name} · ${TENANT.store} — entries, stop rate, dwell, queue.`}
       >
-        <Chip tone="live">Live</Chip>
+        <DataBadge badge={sectionBadges.today} />
+        <DataBadge badge={sectionBadges.connectivity} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
+        {connectivityAgeSeconds != null && (
+          <Chip tone="neutral" title="live/state updated_epoch age">
+            age {connectivityAgeSeconds}s
+          </Chip>
+        )}
         <Segmented options={["Today", "This week"] as const} value={period} onChange={setPeriod} />
       </ScreenHeader>
 

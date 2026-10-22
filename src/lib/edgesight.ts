@@ -11,9 +11,9 @@ export type EdgeSightLive = {
   avg_queue_wait_seconds: number
   queue_alert_active: boolean
   last_updated: string
-  /** Frame-synced active customer tracks (matches YOLO MJPEG HUD). */
-  people_now?: number
-  staff_now?: number
+  /** Frame-synced active customer tracks (matches YOLO MJPEG HUD). Null ⇒ NO-DATA, never coerce to 0. */
+  people_now?: number | null
+  staff_now?: number | null
   infer_fps?: number
   decode_fps?: number
   source?: "live_snapshot" | "telemetry_rollups" | string
@@ -37,13 +37,15 @@ export type EdgeSightLive = {
     face_boxes?: boolean
     face_identity?: boolean
     note?: string
-  }
+  } | null
   engagement?: {
-    avg_attention_score?: number
-    facing_ratio?: number
-    engaged_ratio?: number
-    group_count?: number
-  }
+    avg_attention_score?: number | null
+    facing_ratio?: number | null
+    engaged_ratio?: number | null
+    group_count?: number | null
+  } | null
+  /** cameras.yaml order when present on store snapshot */
+  cameras?: string[]
 }
 
 export type EdgeSightSummary = {
@@ -168,6 +170,7 @@ export type EdgeSightStatus = {
   device?: EdgeSightDevice
   live?: EdgeSightLive
   summary?: EdgeSightSummary
+  /** Ordered like cameras.yaml — first cam is primary until picker. */
   cameras?: string[]
   cameraConfigs?: EdgeSightCameraConfig[]
   demographics?: EdgeSightDemographics
@@ -175,6 +178,8 @@ export type EdgeSightStatus = {
   products?: { categories: EdgeSightProductCategory[] }
   events?: EdgeSightEvent[]
   history?: EdgeSightHistoryRow[]
+  /** Primary-cam heatmap JPEG reachable (status poll ~10s). */
+  heatmapOk?: boolean | null
 }
 
 /** Server-side Docker target (proxy destination). Browser code should prefer portal paths. */

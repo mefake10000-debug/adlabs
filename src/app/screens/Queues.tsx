@@ -4,10 +4,24 @@ import { OccupancyGauge } from "../Business"
 import { AreaChart } from "../charts"
 import { TENANT } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { DataBadge, NoDataState } from "../../components/DataBadge"
+import { displayMetric } from "../../lib/data-freshness"
 
 export function Queues() {
-  const { occupancy, trafficHours, sourceChip, online, status, events, alertsLive, businessLive } =
-    useEdgeSight()
+  const {
+    occupancy,
+    trafficHours,
+    sourceChip,
+    online,
+    status,
+    events,
+    alertsLive,
+    businessLive,
+    sectionBadges,
+    primaryCameraState,
+    queueLength,
+  } = useEdgeSight()
+  const liveQueues = primaryCameraState?.queues
   const queueKpi = businessLive.find((k) => k.label === "Queue length")
   const queueAlerts = alertsLive
     .filter(
@@ -28,15 +42,47 @@ export function Queues() {
         title="Queues"
         sub={`${TENANT.store} · length, wait, and congestion from the checkout zone.`}
       >
+        <DataBadge badge={sectionBadges.queues} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>
           {sourceChip.label}
         </Chip>
       </ScreenHeader>
 
+      {online && (
+        <Panel
+          title="Queues · live/state"
+          sub="cameras[].queues[] @ 2s"
+          action={<DataBadge badge={sectionBadges.queues} />}
+        >
+          {liveQueues == null ? (
+            <NoDataState label="queues null" detail="No queues key on live/state — empty, not zero." />
+          ) : liveQueues.length === 0 ? (
+            <NoDataState label="No queue zones" detail="Draw a queue polygon in Calibration Studio." />
+          ) : (
+            <ul className="grid gap-2.5 sm:grid-cols-2">
+              {liveQueues.map((q) => (
+                <li key={q.id} className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+                  <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{q.name}</p>
+                  <p className="mt-1 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
+                    {displayMetric(q.queue_length)}
+                  </p>
+                  <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
+                    wait {q.avg_wait_seconds != null ? `${Math.round(q.avg_wait_seconds)}s` : "—"}
+                    {q.alert_active ? " · alert" : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      )}
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <Panel>
           <Label>Queue length</Label>
-          <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">{occupancy.queue}</p>
+          <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">
+            {online ? displayMetric(queueLength) : occupancy.queue}
+          </p>
           <div className="mt-2">
             <DeltaPill
               delta={queueKpi?.delta ?? "stable"}
@@ -53,7 +99,7 @@ export function Queues() {
         <Panel>
           <Label>People in store</Label>
           <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">
-            {occupancy.now}
+            {online ? displayMetric(status?.live?.people_now ?? status?.live?.net_occupancy) : occupancy.now}
             <span className="cosmic-text-sm text-[var(--app-faint)]">/{occupancy.capacity}</span>
           </p>
           <p className="mt-2 font-inter cosmic-text-xs text-[var(--app-faint)]">{occupancy.level}% of capacity</p>

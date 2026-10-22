@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { DataBadge } from "../../components/DataBadge"
 import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
 import {
   EDGE_SIGHT_OPS_EMBED,
@@ -71,6 +72,7 @@ export function LiveOps() {
   const cams = edge.status?.cameras ?? []
   const device = edge.status?.device
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
+  const badges = edge.sectionBadges
 
   const streamCam = useMemo(() => {
     const fromLive = edge.status?.live?.camera_id
@@ -99,7 +101,14 @@ export function LiveOps() {
         title="EdgeSight live tools"
         sub="All tools stay on localhost:3000 — Calibration Studio and Streamlit run as Docker backends, proxied into this dashboard."
       >
+        <DataBadge badge={badges.connectivity} />
+        <DataBadge badge={badges.camera_wall} />
         <Chip tone={live ? "live" : "gold"}>{live ? "API healthy" : state === "checking" ? "Checking…" : "API down"}</Chip>
+        {edge.connectivityAgeSeconds != null && (
+          <Chip tone="neutral" title="live/state updated_epoch">
+            age {edge.connectivityAgeSeconds}s
+          </Chip>
+        )}
         <button
           type="button"
           onClick={() => void refresh()}
@@ -206,21 +215,26 @@ export function LiveOps() {
           )}
         </OpsFrame>
       ) : (
-        <OpsFrame
-          eyebrow="/dashboard/live/ops → :8501"
-          title="Streamlit operations UI"
-          live={live}
-        >
-          {live ? (
-            <iframe
-              title="EdgeSight Streamlit ops"
-              src={EDGE_SIGHT_OPS_EMBED}
-              className="h-[min(72vh,720px)] w-full border-0"
-            />
-          ) : (
-            <OfflineHint name="Streamlit ops" />
-          )}
-        </OpsFrame>
+        <div className="space-y-2">
+          <div className="flex justify-end">
+            <DataBadge badge={badges.legacy_ops} />
+          </div>
+          <OpsFrame
+            eyebrow="/dashboard/live/ops → :8501"
+            title="Streamlit operations UI"
+            live={live}
+          >
+            {live ? (
+              <iframe
+                title="EdgeSight Streamlit ops"
+                src={EDGE_SIGHT_OPS_EMBED}
+                className="h-[min(72vh,720px)] w-full border-0"
+              />
+            ) : (
+              <OfflineHint name="Streamlit ops" />
+            )}
+          </OpsFrame>
+        </div>
       )}
 
       <Panel

@@ -1,7 +1,9 @@
 import { UserCog } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
-import { STAFF_INTEL, SIMULATED_NOTE, MATURITY, STAFFING_INTEL } from "../../data/dashboard"
+import { STAFF_INTEL, SIMULATED_NOTE, STAFFING_INTEL } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { DataBadge } from "../../components/DataBadge"
+import { displayMetric } from "../../lib/data-freshness"
 
 const TONE: Record<string, string> = {
   ok: "var(--app-pos)",
@@ -10,34 +12,41 @@ const TONE: Record<string, string> = {
 }
 
 export function Staff() {
-  const { staffLive, sourceChip, online, calibratedZones } = useEdgeSight()
+  const { staffLive, sourceChip, online, calibratedZones, sectionBadges, primaryCameraState, peopleNow } =
+    useEdgeSight()
   const s = staffLive
   const staffZoneCount = calibratedZones.filter((z) => z.type === "staff").length
+  const staffVisible = primaryCameraState?.counts.staff_visible ?? null
+  const staffTagged = primaryCameraState?.counts.staff_tagged ?? null
 
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={UserCog} eyebrow="Owner actions" title={s.title} sub={s.sub}>
+        <DataBadge badge={sectionBadges.staffing} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
-        {online && <Chip tone="live">{MATURITY.live}</Chip>}
       </ScreenHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           {
-            label: "Staff zones",
-            value: online ? String(staffZoneCount) : String(s.onFloor),
+            label: "Staff visible",
+            value: online ? displayMetric(staffVisible) : String(s.onFloor),
             hint: online
-              ? "Calibrated staff polygons (headcount not in live API)"
+              ? "counts.staff_visible · live/state @ 2s"
               : "What you can do: match to peaks below",
           },
           {
-            label: "Visitors now",
-            value: String(s.visitorsNow),
-            hint: online ? "EdgeSight net_occupancy" : "Occupancy · tripwire / tracks",
+            label: "Staff tagged",
+            value: online ? displayMetric(staffTagged) : "—",
+            hint: "counts.staff_tagged · sticky polygon tags",
           },
-          { label: "Staff share", value: s.staffShare, hint: "Staff ÷ people in store — needs staff count API" },
-          { label: "Method", value: "Zone → appear*", hint: s.method },
+          {
+            label: "Visitors now",
+            value: online ? displayMetric(peopleNow) : String(s.visitorsNow),
+            hint: online ? "EdgeSight people_now" : "Occupancy · tripwire / tracks",
+          },
+          { label: "Staff share", value: s.staffShare, hint: `Zones ${staffZoneCount} · ${s.method}` },
         ].map((k) => (
           <Panel key={k.label}>
             <Label>{k.label}</Label>

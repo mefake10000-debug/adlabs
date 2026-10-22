@@ -68,7 +68,35 @@ export async function GET() {
       getJson<EdgeSightHistoryRow[]>(baseUrl, "/api/v1/history?limit=36"),
     ])
 
-  const body: EdgeSightStatus = {
+  // Prefer cameras.yaml order from config; fall back to /api/v1/cameras
+  const orderedIds =
+    (configCams?.cameras?.map((c) => c.id).filter(Boolean) as string[] | undefined)?.length
+      ? configCams!.cameras.map((c) => c.id)
+      : (cameras?.cameras ?? live?.cameras ?? [])
+
+  const primaryCam = orderedIds[0] ?? null
+  let heatmapOk: boolean | null = null
+  if (primaryCam) {
+    const ctrl = new AbortController()
+    const ht = setTimeout(() => ctrl.abort(), 2500)
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/heatmap/${encodeURIComponent(primaryCam)}`, {
+        signal: ctrl.signal,
+        cache: "no-store",
+        method: "GET",
+        headers: { Accept: "image/jpeg,image/*,*/*" },
+      })
+      heatmapOk = res.ok && (res.headers.get("content-type") ?? "").includes("image")
+      // drain small peek then abort body to avoid holding the full JPEG
+      await res.body?.cancel?.()
+    } catch {
+      heatmapOk = false
+    } finally {
+      clearTimeout(ht)
+    }
+  }
+
+  const body: EdgeSightStatus & { heatmapOk?: boolean | null } = {
     online: true,
     baseUrl,
     fetchedAt,
@@ -76,13 +104,14 @@ export async function GET() {
     device: device ?? undefined,
     live: live ?? undefined,
     summary: summary ?? undefined,
-    cameras: cameras?.cameras ?? [],
+    cameras: orderedIds,
     cameraConfigs: configCams?.cameras ?? [],
     demographics: demographics ?? undefined,
     engagement: engagement ?? undefined,
     products: products ? { categories: (products.categories ?? []).slice(0, 8) } : undefined,
     events: events?.events ?? [],
     history: Array.isArray(history) ? history : [],
+    heatmapOk,
   }
 
   return NextResponse.json(body, {
