@@ -3,6 +3,7 @@
 import {
   Activity,
   Cpu,
+  Download,
   ExternalLink,
   Layers,
   RefreshCw,
@@ -22,6 +23,8 @@ import {
   MODEL_STATUS_LEGEND,
   MODELS_EXISTING,
   MODELS_NEXT,
+  PACK_FOLDERS,
+  PACK_RUN_HINTS,
   PIPELINE_STAGES,
   type ModelStatus,
 } from "../../data/models-pack"
@@ -46,9 +49,9 @@ export function Pipeline() {
     <div className="flex flex-col gap-5">
       <ScreenHeader
         icon={Layers}
-        eyebrow="Integration"
+        eyebrow="Models pack · EdgeSight"
         title="Models & EdgeSight"
-        sub="Live CV from localhost:8000 when Docker is up · otherwise showcase fixtures. Honest labels only."
+        sub="Live CV from :8000 when Docker is up · pack weights stay segregated under models/pack/ · Calibration / ops on the Live ops screen."
       >
         <Chip tone={sourceChip.tone} title={sourceChip.title}>
           {sourceChip.label}
@@ -129,6 +132,7 @@ export function Pipeline() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
+            <ExtLink href="/dashboard/live">Calibration / Live ops</ExtLink>
             <ExtLink href={EDGE_SIGHT_UI_URL}>Ops UI :8501</ExtLink>
             <ExtLink href={EDGE_SIGHT_CALIB_URL}>Calibration Studio :8000</ExtLink>
             <ExtLink href={EDGE_SIGHT_DOCS_URL}>API docs</ExtLink>
@@ -178,6 +182,35 @@ export function Pipeline() {
           </div>
         </Panel>
       )}
+
+      <Panel
+        title="Segregated pack · download & Docker"
+        sub="Next-integrate weights live under models/pack/ — not mixed into production models/*.pt until wired."
+        action={<Label>{PACK_RUN_HINTS.branch}</Label>}
+        verified="Friend-readable"
+      >
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {PACK_FOLDERS.map((f) => (
+            <div key={f.id} className="rounded-xl border border-[var(--app-line)] p-3">
+              <p className="font-mono cosmic-text-2xs text-[var(--app-accent)]">{f.folder}</p>
+              <p className="mt-1 font-inter cosmic-text-xs font-semibold text-[var(--app-text)]">{f.role}</p>
+              <p className="mt-0.5 font-mono cosmic-text-2xs text-[var(--app-faint)]">{f.weight}</p>
+              <p className="mt-2 font-inter cosmic-text-2xs text-[var(--app-sub)]">{f.status}</p>
+            </div>
+          ))}
+        </div>
+        <pre className="mt-4 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-raise)] p-4 font-mono cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
+{`# ADLabs-dev (branch mefake/integration or integration)
+cd ~/Desktop/ad-labs-project/repos/ADLabs-dev
+${PACK_RUN_HINTS.download}
+${PACK_RUN_HINTS.docker}
+# mount: ${PACK_RUN_HINTS.mount}`}
+        </pre>
+        <p className="mt-3 flex items-start gap-2 font-inter cosmic-text-xs text-[var(--app-faint)]">
+          <Download size={12} className="mt-0.5 shrink-0" />
+          Weights are gitignored. Re-run the download script on any machine; OSNet stays default-off (no face ReID).
+        </p>
+      </Panel>
 
       <Panel title="Models in EdgeSight today" action={<Label>{MODELS_EXISTING.length}</Label>}>
         <ModelGrid cards={MODELS_EXISTING} />

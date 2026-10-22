@@ -163,3 +163,55 @@ export const HONESTY_BARS = [
   "Loss-risk alerts are heuristics, not perfect theft detection. No facial identity product.",
   "Forecasts and long-horizon patterns are illustrative until enough rollup history exists.",
 ]
+
+/** Segregated next-integrate weights — ADLabs-dev `models/pack/` (mefake/integration). */
+export const PACK_FOLDERS: {
+  id: string
+  folder: string
+  role: string
+  weight: string
+  status: string
+}[] = [
+  {
+    id: "det-n",
+    folder: "01-detection/yolo26n/",
+    role: "Doorway fast detector",
+    weight: "yolo26n.pt",
+    status: "Downloaded · not prod-wired",
+  },
+  {
+    id: "track",
+    folder: "02-tracking/",
+    role: "OC-SORT / BoT-SORT",
+    weight: "(code deps)",
+    status: "README only",
+  },
+  {
+    id: "reid",
+    folder: "03-reid/osnet-x0_25/",
+    role: "Soft ReID (privacy-gated)",
+    weight: "osnet_x0_25_msmt17.pt",
+    status: "Downloaded · default-off",
+  },
+  {
+    id: "attr",
+    folder: "04-attributes/",
+    role: "Demographics",
+    weight: "use models/onnx/",
+    status: "Already in EdgeSight",
+  },
+  {
+    id: "seg",
+    folder: "05-seg/",
+    role: "Foot-mask salvage",
+    weight: "yolo26m-seg.pt",
+    status: "Use production weight",
+  },
+]
+
+export const PACK_RUN_HINTS = {
+  download: "python scripts/download_pack_models.py",
+  docker: "docker compose -f docker-compose.yml -f docker-compose.pack.yml up -d",
+  mount: "models/pack → /app/models/pack (read-only)",
+  branch: "ADLabs-dev · mefake/integration (or integration)",
+}

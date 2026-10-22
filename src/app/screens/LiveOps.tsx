@@ -90,7 +90,7 @@ export function LiveOps() {
         icon={Radio}
         eyebrow="Calibration / Live ops"
         title="EdgeSight live tools"
-        sub="Native shell for Calibration Studio (:8000) and Streamlit ops (:8501). Marketing screens above stay simulated unless wired to live APIs."
+        sub="Calibration Studio (:8000) + Streamlit ops (:8501) embedded here. Today / Queues / Demographics pull live EdgeSight when Docker is healthy; Models & EdgeSight shows the pack."
       >
         <Chip tone={live ? "live" : "gold"}>{live ? "API healthy" : state === "checking" ? "Checking…" : "API down"}</Chip>
         <button
@@ -116,8 +116,9 @@ export function LiveOps() {
         <p className="min-w-0 flex-1 font-inter cosmic-text-xs text-[var(--app-sub)]">
           <span className="font-semibold text-[var(--app-text)]">{detail}</span>
           {" · "}
-          Honest split: this page embeds <strong className="font-semibold">live</strong> EdgeSight UIs when Docker is running;
-          KPI tiles elsewhere on /dashboard are still the Organic Clothing Co. <strong className="font-semibold">demo fixtures</strong> unless a live-data branch is merged.
+          This page embeds <strong className="font-semibold">live</strong> EdgeSight UIs when Docker is up.
+          On <strong className="font-semibold">mefake/integration</strong>, Today / Queues / Demographics / Models also blend live API data;
+          remaining storytelling tiles stay Organic Clothing Co. fixtures (honest labels).
         </p>
         <a href={DOCS_URL} target="_blank" rel="noreferrer" className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
           API docs
