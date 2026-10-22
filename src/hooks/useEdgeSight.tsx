@@ -30,7 +30,10 @@ import {
   type OwnerAlert,
 } from "../data/dashboard"
 
+/** Heavy aggregate poll (summary, demographics, history…). */
 const POLL_MS = 5000
+/** Fast live KPI poll — occupancy/queue/entries tick with YOLO detections. */
+const LIVE_POLL_MS = 1000
 
 export type LiveAlert = OwnerAlert & { live: boolean }
 
@@ -97,15 +100,15 @@ function buildValue(
   const eng = status?.engagement
   const configs = status?.cameraConfigs ?? []
 
+  const peopleNow = online && live
+    ? Math.max(0, live.people_now ?? live.net_occupancy)
+    : OCCUPANCY.now
   const occupancy: typeof OCCUPANCY =
     online && live
       ? {
-          now: Math.max(0, live.net_occupancy),
+          now: peopleNow,
           capacity: OCCUPANCY.capacity,
-          level: Math.min(
-            100,
-            Math.round((Math.max(0, live.net_occupancy) / OCCUPANCY.capacity) * 100),
-          ),
+          level: Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
           queue: live.queue_length,
           avgWait: formatWait(live.avg_queue_wait_seconds),
           peakWindow: formatPeakHour(summary?.peak_period?.hour) || OCCUPANCY.peakWindow,
@@ -152,11 +155,12 @@ function buildValue(
     }
   }
 
+  const liveSource = live?.source === "live_snapshot" ? "YOLO snapshot" : "rollups"
   const sourceChip = online
     ? {
         tone: "live" as const,
-        label: "EdgeSight live",
-        title: `Wired to ${status?.baseUrl} · ${status?.device?.status ?? "online"} · FPS ${status?.device?.pipeline_fps ?? "—"} · poll ${POLL_MS / 1000}s`,
+        label: live?.source === "live_snapshot" ? "YOLO live" : "EdgeSight live",
+        title: `Wired to ${status?.baseUrl} · ${liveSource} · FPS ${live?.infer_fps ?? status?.device?.pipeline_fps ?? "—"} · live poll ${LIVE_POLL_MS / 1000}s`,
       }
     : {
         tone: "neutral" as const,
@@ -166,6 +170,7 @@ function buildValue(
           : "Simulated showcase · Organic Clothing Co. · Bandra (start EdgeSight on :8000 for live)",
       }
 
+  const snapEng = live?.engagement
   const liveKpis = {
     entries: live
       ? live.total_visitors.toLocaleString("en-IN")
@@ -178,8 +183,16 @@ function buildValue(
         ? summary.total_exits.toLocaleString("en-IN")
         : "—",
     dwell: live ? formatDwell(live.avg_dwell_seconds) : "6m 12s",
-    engagedRatio: eng ? `${Math.round(eng.avg_engaged_ratio * 100)}%` : null,
-    facingRatio: eng ? `${Math.round(eng.avg_facing_ratio * 100)}%` : null,
+    engagedRatio: eng
+      ? `${Math.round(eng.avg_engaged_ratio * 100)}%`
+      : snapEng?.engaged_ratio != null
+        ? `${Math.round(snapEng.engaged_ratio * 100)}%`
+        : null,
+    facingRatio: eng
+      ? `${Math.round(eng.avg_facing_ratio * 100)}%`
+      : snapEng?.facing_ratio != null
+        ? `${Math.round(snapEng.facing_ratio * 100)}%`
+        : null,
   }
 
   const calibratedZones: CalibratedZoneRow[] = flattenCalibratedZones(configs).map((row) => ({
@@ -347,16 +360,57 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  /** High-frequency patch: only /api/v1/live so occupancy/queue tick with detections. */
+  const refreshLive = useCallback(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/edgesight/live", { cache: "no-store" })
+        if (!res.ok) return
+        const data = (await res.json()) as {
+          online?: boolean
+          live?: EdgeSightStatus["live"]
+          fetchedAt?: string
+        }
+        if (cancelled || !data.live) return
+        setStatus((prev) => {
+          if (!prev?.online && !data.online) return prev
+          return {
+            ...(prev ?? {
+              online: true,
+              baseUrl: "http://localhost:8000",
+              fetchedAt: data.fetchedAt ?? new Date().toISOString(),
+            }),
+            online: data.online ?? prev?.online ?? true,
+            fetchedAt: data.fetchedAt ?? new Date().toISOString(),
+            live: data.live,
+          }
+        })
+      } catch {
+        /* keep last good snapshot */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   useEffect(() => {
     const cancel = refresh()
-    const id = setInterval(() => {
+    const heavy = setInterval(() => {
       refresh()
     }, POLL_MS)
+    const liveCancel = refreshLive()
+    const live = setInterval(() => {
+      refreshLive()
+    }, LIVE_POLL_MS)
     return () => {
       cancel()
-      clearInterval(id)
+      liveCancel()
+      clearInterval(heavy)
+      clearInterval(live)
     }
-  }, [refresh])
+  }, [refresh, refreshLive])
 
   const value = useMemo(
     () => buildValue(status, loading, () => { refresh() }),

@@ -15,6 +15,7 @@ import {
   STORES, BRIEF, CAMPAIGNS, ZONES,
 } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { LiveVision } from "../../components/LiveVision"
 
 const AFT_CAMPAIGN = CAMPAIGNS[0]
 
@@ -74,7 +75,14 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         ? "engaged ratio · Partial (not window-stop)"
         : "window ≥4s · demo (rule not shipped)",
     },
-    { icon: Users, label: "In store", value: `${occupancy.now}`, sub: `of ${occupancy.capacity}` },
+    {
+      icon: Users,
+      label: "In store",
+      value: `${occupancy.now}`,
+      sub: online && status?.live?.source === "live_snapshot"
+        ? "active tracks · YOLO"
+        : `of ${occupancy.capacity}`,
+    },
     { icon: Clock, label: "Queue", value: `${occupancy.queue} · ${occupancy.avgWait}`, sub: "checkout wait" },
     {
       icon: Clock3,
@@ -97,6 +105,9 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         <Segmented options={["Today", "This week"] as const} value={period} onChange={setPeriod} />
       </ScreenHeader>
+
+      {/* Live YOLO stream — detections drive the strip KPIs below */}
+      <LiveVision compact />
 
       {/* What’s happening now */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

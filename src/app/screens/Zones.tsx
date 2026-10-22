@@ -9,6 +9,7 @@ import type { ImageCallout, ImageZone } from "../../components/AnnotatedImage"
 import { ZONES, TENANT, SIMULATED_NOTE, ZONE_METRIC_NOTE } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { formatWait } from "../../lib/edgesight"
+import { LiveVision } from "../../components/LiveVision"
 
 const FLOOR_MARKS: Record<string, { zone: ImageZone; callout: ImageCallout }> = {
   H3: {
@@ -59,6 +60,8 @@ export function Zones() {
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
       </ScreenHeader>
+
+      <LiveVision compact />
 
       {online && (
         <Panel
