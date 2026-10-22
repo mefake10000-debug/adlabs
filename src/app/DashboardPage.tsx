@@ -95,6 +95,12 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: "Model-backed intel",
+    items: [
+      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
+    ],
+  },
+  {
     label: "Live now",
     items: [
       { id: "overview", label: "Today", icon: LayoutDashboard, color: "#8B7CF6" },
@@ -102,7 +108,6 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
       { id: "zones", label: "Floor zones", icon: Map, color: "#FF9500" },
       { id: "queues", label: "Queues", icon: Timer, color: "#5ac8fa" },
       { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
-      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
     ],
   },
   {
@@ -146,6 +151,12 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: "Model-backed intel",
+    items: [
+      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
+    ],
+  },
+  {
     label: "Live now",
     items: [
       { id: "manager", label: "Manager today", icon: ClipboardList, color: "#3ECF8E" },
@@ -154,7 +165,6 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
       { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
       { id: "staff", label: "Staff", icon: UserCog, color: "#34C759" },
       { id: "safety", label: "Safety · cautions", icon: ShieldAlert, color: "#FF9500" },
-      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
     ],
   },
   {

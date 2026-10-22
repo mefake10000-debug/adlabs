@@ -97,7 +97,15 @@ export const MODELS_NEXT: ModelCard[] = [
     role: "Tracking upgrade",
     unlocks: "Fewer ID switches → cleaner footfall & dwell",
     status: "next",
-    statusLabel: "Integrate next",
+    statusLabel: "Top 5 · integrate next",
+  },
+  {
+    id: "pose-ankles",
+    name: "Pose ankle foot-points",
+    role: "Zone grounding",
+    unlocks: "Wire existing YOLO26m pose ankles into floor zones (no new weight)",
+    status: "partial",
+    statusLabel: "Top 5 · wire existing pose",
   },
   {
     id: "ntp-sync",
@@ -105,7 +113,7 @@ export const MODELS_NEXT: ModelCard[] = [
     role: "Multi-cam sync",
     unlocks: "Prerequisite for cross-cam handoff",
     status: "next",
-    statusLabel: "Integrate next",
+    statusLabel: "Top 5 · integrate next",
   },
   {
     id: "homography",
@@ -113,7 +121,7 @@ export const MODELS_NEXT: ModelCard[] = [
     role: "Calibration",
     unlocks: "Overlap gates for fusion & metric velocity",
     status: "next",
-    statusLabel: "Integrate next",
+    statusLabel: "Top 5 · integrate next",
   },
   {
     id: "osnet",
