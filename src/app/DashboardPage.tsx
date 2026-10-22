@@ -7,7 +7,7 @@ import {
   Sun, Moon, Play, Presentation, ArrowLeft, ShieldCheck,
   BarChart3, Users, Package, Sparkles, History as HistoryIcon, Search,
   Eye, Timer, ShoppingBag, Building2, Repeat, LineChart as LineIcon,
-  UserCog, ShieldAlert,
+  UserCog, ShieldAlert, Radio,
 } from "lucide-react"
 import Link from "next/link"
 import { Logo } from "../components/Logo"
@@ -36,6 +36,7 @@ import { Patterns } from "./screens/Patterns"
 import { Forecasts } from "./screens/Forecasts"
 import { Staff } from "./screens/Staff"
 import { Safety } from "./screens/Safety"
+import { LiveOps } from "./screens/LiveOps"
 import { PresentMode } from "./PresentMode"
 import { VoiceAssistant } from "./VoiceAssistant"
 import { CmdPalette } from "./CmdPalette"
@@ -65,6 +66,7 @@ type Screen =
   | "forecasts"
   | "staff"
   | "safety"
+  | "liveOps"
 
 type Role = "Brand" | "Store"
 type Theme = "light" | "dark"
@@ -83,6 +85,12 @@ function greeting() {
 type NavItem = { id: Screen; label: string; icon: typeof LayoutDashboard; badge?: number; color?: string }
 
 const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Calibration / Live ops",
+    items: [
+      { id: "liveOps", label: "EdgeSight live", icon: Radio, color: "#34C759" },
+    ],
+  },
   {
     label: "Live now",
     items: [
@@ -128,6 +136,12 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
 
 const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
   {
+    label: "Calibration / Live ops",
+    items: [
+      { id: "liveOps", label: "EdgeSight live", icon: Radio, color: "#34C759" },
+    ],
+  },
+  {
     label: "Live now",
     items: [
       { id: "manager", label: "Manager today", icon: ClipboardList, color: "#3ECF8E" },
@@ -172,12 +186,13 @@ const PAGE_TITLES: Record<Screen, string> = {
   forecasts: "Forecasts",
   staff: "Staff",
   safety: "Safety · cautions",
+  liveOps: "Calibration / Live ops",
 }
 
-export function DashboardPage() {
+export function DashboardPage({ initialScreen = "overview" }: { initialScreen?: Screen } = {}) {
   const [theme, setTheme] = useState<Theme>("dark")
   const [role, setRole] = useState<Role>("Brand")
-  const [screen, setScreen] = useState<Screen>("overview")
+  const [screen, setScreen] = useState<Screen>(initialScreen)
   const [present, setPresent] = useState(false)
   const [selectedStore, setSelectedStore] = useState("madison")
   const [cmd, setCmd] = useState(false)
@@ -213,7 +228,7 @@ export function DashboardPage() {
   const changeRole = (r: Role) => {
     setRole(r)
     const storeOk: Screen[] = [
-      "stores", "store", "manager", "queues", "zones", "alerts", "tour", "staff", "safety",
+      "stores", "store", "manager", "queues", "zones", "alerts", "tour", "staff", "safety", "liveOps",
     ]
     if (r === "Store" && !storeOk.includes(screen)) {
       setScreen("manager")
@@ -251,6 +266,7 @@ export function DashboardPage() {
       case "forecasts": return <Forecasts />
       case "staff": return <Staff />
       case "safety": return <Safety />
+      case "liveOps": return <LiveOps />
       default: return <Overview />
     }
   }

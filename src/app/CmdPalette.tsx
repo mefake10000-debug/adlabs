@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 type Screen = string
 
 const ALL: { id: string; label: string; group: string }[] = [
+  { id: "liveOps", label: "EdgeSight live · Calibration / ops", group: "Calibration / Live ops" },
   { id: "overview", label: "Today", group: "Live now" },
   { id: "storefront", label: "Entrances", group: "Live now" },
   { id: "zones", label: "Floor zones", group: "Live now" },
