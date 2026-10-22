@@ -2,23 +2,23 @@ import { Users, Clock, Timer, TriangleAlert } from "lucide-react"
 import { Panel, Label, Chip, ScreenHeader, DeltaPill } from "../ui"
 import { OccupancyGauge } from "../Business"
 import { AreaChart } from "../charts"
-import {
-  ALERTS,
-  TENANT,
-  BUSINESS_KPIS,
-} from "../../data/dashboard"
+import { TENANT } from "../../data/dashboard"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 
-const QUEUE_KPI = BUSINESS_KPIS.find((k) => k.label === "Queue length")
-
 export function Queues() {
-  const { occupancy, trafficHours, sourceChip, online, status, events } = useEdgeSight()
-  const queueAlerts = ALERTS.filter(
-    (a) =>
-      /queue|wait|checkout|congestion|staff/i.test(a.message) ||
-      a.severity === "critical" ||
-      a.severity === "high",
-  ).slice(0, 3)
+  const { occupancy, trafficHours, sourceChip, online, status, events, alertsLive, businessLive } =
+    useEdgeSight()
+  const queueKpi = businessLive.find((k) => k.label === "Queue length")
+  const queueAlerts = alertsLive
+    .filter(
+      (a) =>
+        a.live ||
+        /queue|wait|checkout|congestion|staff/i.test(a.message) ||
+        a.severity === "critical" ||
+        a.severity === "high",
+    )
+    .slice(0, 4)
+  const recentCrossings = [...events].slice(-8).reverse()
 
   return (
     <div className="flex flex-col gap-5">
@@ -28,7 +28,6 @@ export function Queues() {
         title="Queues"
         sub={`${TENANT.store} · length, wait, and congestion from the checkout zone.`}
       >
-        <Chip tone="live">Live</Chip>
         <Chip tone={sourceChip.tone} title={sourceChip.title}>
           {sourceChip.label}
         </Chip>
@@ -39,7 +38,11 @@ export function Queues() {
           <Label>Queue length</Label>
           <p className="mt-2 font-num cosmic-text-2xl font-bold text-[var(--app-text)]">{occupancy.queue}</p>
           <div className="mt-2">
-            <DeltaPill delta={QUEUE_KPI?.delta ?? "stable"} tone="flat" note={QUEUE_KPI?.note} />
+            <DeltaPill
+              delta={queueKpi?.delta ?? "stable"}
+              tone={status?.live?.queue_alert_active ? "neg" : "flat"}
+              note={queueKpi?.note}
+            />
           </div>
         </Panel>
         <Panel>
@@ -71,10 +74,40 @@ export function Queues() {
         >
           <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} height={190} />
           <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            Queue pressure tracks entry peaks — 15:00–17:00 is the staffing window.
+            Queue pressure tracks entry peaks — staff to the live peak window above.
           </p>
         </Panel>
       </div>
+
+      {online && recentCrossings.length > 0 && (
+        <Panel
+          title="Recent tripwire crossings"
+          action={<Label>{recentCrossings.length}</Label>}
+          verified="/api/v1/events"
+        >
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {recentCrossings.map((e) => (
+              <li
+                key={e.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-[var(--app-line)] px-3 py-2"
+              >
+                <span className="font-mono cosmic-text-2xs text-[var(--app-faint)]">
+                  track {e.track_id} · {e.camera_id}
+                </span>
+                <span
+                  className="font-num cosmic-text-xs font-bold uppercase"
+                  style={{ color: e.direction === "in" ? "var(--app-pos)" : "var(--app-neg)" }}
+                >
+                  {e.direction}
+                </span>
+                <span className="font-mono cosmic-text-2xs text-[var(--app-faint)]">
+                  {(e.event_timestamp || "").split(" ")[1] ?? e.event_timestamp}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel title="What needs attention" action={<Label>{queueAlerts.length}</Label>}>
         <div className="flex flex-col gap-3">
@@ -92,6 +125,7 @@ export function Queues() {
               <div className="min-w-0">
                 <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
                   {a.zone ?? a.store} · {a.message}
+                  {a.live ? " · live" : ""}
                 </p>
                 <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
                   {a.action} · {a.time}
