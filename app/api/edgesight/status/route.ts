@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server"
-import type { EdgeSightStatus } from "../../../../src/lib/edgesight"
+import type {
+  EdgeSightCameraConfig,
+  EdgeSightEvent,
+  EdgeSightHistoryRow,
+  EdgeSightStatus,
+} from "../../../../src/lib/edgesight"
 import { EDGE_SIGHT_DEFAULT_URL } from "../../../../src/lib/edgesight"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-const TIMEOUT_MS = 2500
+const TIMEOUT_MS = 2800
 
 async function getJson<T>(base: string, path: string): Promise<T | null> {
   const ctrl = new AbortController()
@@ -25,6 +30,10 @@ async function getJson<T>(base: string, path: string): Promise<T | null> {
   }
 }
 
+/**
+ * Single live snapshot for the whole dashboard.
+ * Every screen should poll this (via EdgeSightProvider) — not invent separate fetches.
+ */
 export async function GET() {
   const baseUrl = (process.env.EDGE_SIGHT_URL || EDGE_SIGHT_DEFAULT_URL).replace(/\/$/, "")
   const fetchedAt = new Date().toISOString()
@@ -42,18 +51,22 @@ export async function GET() {
     })
   }
 
-  const [device, live, summary, cameras, demographics, engagement, products] = await Promise.all([
-    getJson<EdgeSightStatus["device"]>(baseUrl, "/api/v1/device/health"),
-    getJson<EdgeSightStatus["live"]>(baseUrl, "/api/v1/live"),
-    getJson<EdgeSightStatus["summary"]>(baseUrl, "/api/v1/analytics/summary"),
-    getJson<{ cameras: string[] }>(baseUrl, "/api/v1/cameras"),
-    getJson<EdgeSightStatus["demographics"]>(baseUrl, "/api/v1/analytics/demographics"),
-    getJson<EdgeSightStatus["engagement"]>(baseUrl, "/api/v1/analytics/engagement"),
-    getJson<{ categories: NonNullable<EdgeSightStatus["products"]>["categories"] }>(
-      baseUrl,
-      "/api/v1/analytics/products",
-    ),
-  ])
+  const [device, live, summary, cameras, configCams, demographics, engagement, products, events, history] =
+    await Promise.all([
+      getJson<EdgeSightStatus["device"]>(baseUrl, "/api/v1/device/health"),
+      getJson<EdgeSightStatus["live"]>(baseUrl, "/api/v1/live"),
+      getJson<EdgeSightStatus["summary"]>(baseUrl, "/api/v1/analytics/summary"),
+      getJson<{ cameras: string[] }>(baseUrl, "/api/v1/cameras"),
+      getJson<{ cameras: EdgeSightCameraConfig[] }>(baseUrl, "/api/v1/config/cameras"),
+      getJson<EdgeSightStatus["demographics"]>(baseUrl, "/api/v1/analytics/demographics"),
+      getJson<EdgeSightStatus["engagement"]>(baseUrl, "/api/v1/analytics/engagement"),
+      getJson<{ categories: NonNullable<EdgeSightStatus["products"]>["categories"] }>(
+        baseUrl,
+        "/api/v1/analytics/products",
+      ),
+      getJson<{ events: EdgeSightEvent[] }>(baseUrl, "/api/v1/events?limit=24"),
+      getJson<EdgeSightHistoryRow[]>(baseUrl, "/api/v1/history?limit=36"),
+    ])
 
   const body: EdgeSightStatus = {
     online: true,
@@ -64,9 +77,12 @@ export async function GET() {
     live: live ?? undefined,
     summary: summary ?? undefined,
     cameras: cameras?.cameras ?? [],
+    cameraConfigs: configCams?.cameras ?? [],
     demographics: demographics ?? undefined,
     engagement: engagement ?? undefined,
     products: products ? { categories: (products.categories ?? []).slice(0, 8) } : undefined,
+    events: events?.events ?? [],
+    history: Array.isArray(history) ? history : [],
   }
 
   return NextResponse.json(body, {

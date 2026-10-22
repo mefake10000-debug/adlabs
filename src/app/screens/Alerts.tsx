@@ -3,7 +3,8 @@
 import { useState } from "react"
 import { TriangleAlert, ShieldAlert } from "lucide-react"
 import { Panel, Label, Chip, ScreenHeader } from "../ui"
-import { ALERTS, SIMULATED_NOTE, type AlertCategory } from "../../data/dashboard"
+import { SIMULATED_NOTE, type AlertCategory } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 const CATS: { id: "all" | AlertCategory; label: string }[] = [
   { id: "all", label: "All" },
@@ -15,14 +16,16 @@ const CATS: { id: "all" | AlertCategory; label: string }[] = [
 ]
 
 export function Alerts() {
+  const { alertsLive, sourceChip, online } = useEdgeSight()
   const [filter, setFilter] = useState<"all" | "critical" | "high" | "medium" | "low">("all")
   const [cat, setCat] = useState<"all" | AlertCategory>("all")
 
-  const filtered = ALERTS.filter((a) => {
+  const filtered = alertsLive.filter((a) => {
     if (filter !== "all" && a.severity !== filter) return false
     if (cat !== "all" && a.category !== cat) return false
     return true
   })
+  const liveCount = alertsLive.filter((a) => a.live).length
 
   return (
     <div className="flex flex-col gap-5">
@@ -30,19 +33,19 @@ export function Alerts() {
         icon={ShieldAlert}
         eyebrow="Owner actions"
         title="Alerts"
-        sub={`${ALERTS.length} actionable · severity + category · each row says what you can do.`}
+        sub={`${alertsLive.length} actionable · ${liveCount} from EdgeSight live · each row says what you can do.`}
       >
-        <Chip tone="live">Live</Chip>
-        <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
+        {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
       </ScreenHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          { label: "Critical", count: ALERTS.filter((a) => a.severity === "critical").length, color: "var(--app-neg)" },
-          { label: "High", count: ALERTS.filter((a) => a.severity === "high").length, color: "var(--app-gold)" },
-          { label: "Medium", count: ALERTS.filter((a) => a.severity === "medium").length, color: "var(--app-sub)" },
-          { label: "Low", count: ALERTS.filter((a) => a.severity === "low").length, color: "var(--app-faint)" },
-          { label: "Total", count: ALERTS.length, color: "var(--app-text)" },
+          { label: "Critical", count: alertsLive.filter((a) => a.severity === "critical").length, color: "var(--app-neg)" },
+          { label: "High", count: alertsLive.filter((a) => a.severity === "high").length, color: "var(--app-gold)" },
+          { label: "Medium", count: alertsLive.filter((a) => a.severity === "medium").length, color: "var(--app-sub)" },
+          { label: "Low", count: alertsLive.filter((a) => a.severity === "low").length, color: "var(--app-faint)" },
+          { label: "Total", count: alertsLive.length, color: "var(--app-text)" },
         ].map((s) => (
           <Panel key={s.label}>
             <div className="flex items-center gap-2">
@@ -142,6 +145,7 @@ export function Alerts() {
                     <span className="rounded-full border border-[var(--app-line)] px-2 py-0.5 font-mono cosmic-text-2xs text-[var(--app-faint)]">
                       {a.category}
                     </span>
+                    {a.live && <Chip tone="live">EdgeSight</Chip>}
                     <span className="font-inter cosmic-text-xs text-[var(--app-faint)]">{a.time}</span>
                   </div>
                   <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">

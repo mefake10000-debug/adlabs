@@ -62,6 +62,64 @@ export type EdgeSightProductCategory = {
   windows: number
 }
 
+export type EdgeSightTripwire = {
+  id: string
+  name: string
+  line: number[][]
+  in_direction: string
+}
+
+export type EdgeSightZone = {
+  id: string
+  name: string
+  polygon: number[][]
+  type: "queue" | "staff" | "dwell" | string
+}
+
+export type EdgeSightCameraConfig = {
+  id: string
+  name: string
+  source?: string
+  fps_target?: number
+  resolution?: number[]
+  tripwires: EdgeSightTripwire[]
+  zones: EdgeSightZone[]
+}
+
+export type EdgeSightEvent = {
+  id: number
+  store_id: string
+  device_id: string
+  camera_id: string
+  wire_id: string
+  track_id: number
+  direction: "in" | "out" | string
+  event_timestamp: string
+  received_at: string
+}
+
+export type EdgeSightHistoryRow = {
+  id: number
+  store_id: string
+  device_id: string
+  camera_id: string
+  timestamp_start: string
+  timestamp_end: string
+  in_count: number
+  out_count: number
+  current_occupancy: number
+  avg_dwell_seconds: number
+  queue_length: number
+  avg_queue_wait_seconds: number
+  queue_alert_active: number | boolean
+  received_at: string
+  avg_attention_score?: number
+  facing_ratio?: number
+  phone_usage_rate?: number
+  engaged_ratio?: number
+  group_count?: number
+}
+
 export type EdgeSightStatus = {
   online: boolean
   baseUrl: string
@@ -72,9 +130,12 @@ export type EdgeSightStatus = {
   live?: EdgeSightLive
   summary?: EdgeSightSummary
   cameras?: string[]
+  cameraConfigs?: EdgeSightCameraConfig[]
   demographics?: EdgeSightDemographics
   engagement?: EdgeSightEngagement
   products?: { categories: EdgeSightProductCategory[] }
+  events?: EdgeSightEvent[]
+  history?: EdgeSightHistoryRow[]
 }
 
 export const EDGE_SIGHT_DEFAULT_URL = "http://localhost:8000"
@@ -150,4 +211,36 @@ export function hourlyToChart(
     const hh = t.slice(0, 2)
     return { h: hh, v: row.visitors }
   })
+}
+
+/** Flatten calibrated zones from camera configs (EdgeSight truth). */
+export function flattenCalibratedZones(
+  configs?: EdgeSightCameraConfig[],
+): { cameraId: string; cameraName: string; zone: EdgeSightZone }[] {
+  if (!configs?.length) return []
+  return configs.flatMap((cam) =>
+    (cam.zones ?? []).map((zone) => ({
+      cameraId: cam.id,
+      cameraName: cam.name,
+      zone,
+    })),
+  )
+}
+
+export function countTripwires(configs?: EdgeSightCameraConfig[]): number {
+  if (!configs?.length) return 0
+  return configs.reduce((n, c) => n + (c.tripwires?.length ?? 0), 0)
+}
+
+/** Recent history → simple occupancy series for charts. */
+export function historyToOccupancySeries(
+  rows?: EdgeSightHistoryRow[],
+): { h: string; v: number }[] {
+  if (!rows?.length) return []
+  return [...rows]
+    .slice(-24)
+    .map((r) => {
+      const t = (r.timestamp_end || r.received_at || "").split(" ")[1] ?? ""
+      return { h: t.slice(0, 5) || String(r.id), v: r.current_occupancy }
+    })
 }

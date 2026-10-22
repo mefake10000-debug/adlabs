@@ -12,10 +12,13 @@ const ICONS: Record<string, typeof Wallet> = {
 }
 
 export function BusinessKpis() {
+  const edge = useEdgeSightOptional()
+  const kpis = edge?.businessLive ?? BUSINESS_KPIS
+  const verified = edge?.online ? "EdgeSight tripwire · zones · queue" : "Tripwire · zones · queue · demo"
   return (
-    <Panel title="Camera signals today" action={<Label>EdgeSight-class</Label>} verified="Tripwire · zones · queue">
+    <Panel title="Camera signals today" action={<Label>{edge?.online ? "EdgeSight live" : "EdgeSight-class"}</Label>} verified={verified}>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {BUSINESS_KPIS.map((k) => {
+        {kpis.map((k) => {
           const Icon = ICONS[k.iconHint] ?? Wallet
           const up = k.tone === "pos"
           const flat = k.tone === "flat"

@@ -2,7 +2,8 @@ import { useState } from "react"
 import { Check, Users, ShieldCheck, Video, Clock, TriangleAlert, Flame, CalendarDays, ClipboardList } from "lucide-react"
 import { Panel, Label, Chip, ScreenHeader } from "../ui"
 import { AreaChart } from "../charts"
-import { MANAGER, TRAFFIC_HOURS, ZONES, ALERTS, SIMULATED_NOTE, STAFFING_INTEL, STORE_PERFORMANCE } from "../../data/dashboard"
+import { MANAGER, ZONES, SIMULATED_NOTE, STAFFING_INTEL, STORE_PERFORMANCE } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 const LEVEL_STYLE: Record<string, { bg: string; color: string }> = {
   low: { bg: "color-mix(in srgb, var(--app-faint) 10%, transparent)", color: "var(--app-faint)" },
@@ -12,19 +13,24 @@ const LEVEL_STYLE: Record<string, { bg: string; color: string }> = {
 }
 
 export function Manager() {
+  const { trafficHours, occupancy, alertsLive, sourceChip, online, calibratedZones, liveKpis } = useEdgeSight()
   const [done, setDone] = useState<number[]>([])
   const m = MANAGER
   const flagged = ZONES.filter((z) => z.flag)
-  const activeAlerts = ALERTS.filter((a) => a.severity === "critical" || a.severity === "high")
+  const activeAlerts = alertsLive.filter((a) => a.severity === "critical" || a.severity === "high")
   const sp = STORE_PERFORMANCE
+  const peakLabel = occupancy.peakWindow !== "—" ? occupancy.peakWindow : "PEAK 15:00 – 17:00"
+  const liveBanner = online
+    ? `In store ${occupancy.now} · queue ${occupancy.queue} (${occupancy.avgWait}) · entries ${liveKpis.entries} · ${calibratedZones.length} calibrated zones`
+    : m.alert
 
   const toggle = (i: number) => setDone((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))
 
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={ClipboardList} eyebrow="Floor" title="Manager today" sub={`${m.store} · ${m.date}`}>
-        <Chip tone="live">Live</Chip>
-        <Chip tone="gold" title={SIMULATED_NOTE}>Demo</Chip>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
+        {!online && <Chip tone="gold" title={SIMULATED_NOTE}>Demo</Chip>}
       </ScreenHeader>
 
       {/* Alert banner */}
@@ -34,17 +40,19 @@ export function Manager() {
       >
         <Users size={16} className="mt-0.5 shrink-0" style={{ color: "var(--app-gold)" }} />
         <div>
-          <p className="font-inter cosmic-text-sm leading-relaxed text-[var(--app-text)]">{m.alert}</p>
+          <p className="font-inter cosmic-text-sm leading-relaxed text-[var(--app-text)]">{liveBanner}</p>
           <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            Verified on the edge device · aggregate counts only · no identities retained
+            {online
+              ? "EdgeSight aggregates · no identities · multi-cam occupancy is a sum (no ReID dedup yet)"
+              : "Verified on the edge device · aggregate counts only · no identities retained"}
           </p>
         </div>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
         {/* Today's curve */}
-        <Panel title="Today's curve" action={<Label>PEAK 15:00 – 17:00</Label>}>
-          <AreaChart data={TRAFFIC_HOURS} peaks={[{ from: "15", to: "17" }]} height={190} />
+        <Panel title="Today's curve" action={<Label>{peakLabel}</Label>}>
+          <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} height={190} />
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
             <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs text-[var(--app-faint)]">
               <Video size={13} className="text-[var(--app-gold)]" /> Edge video verified
@@ -99,9 +107,13 @@ export function Manager() {
             className="aspect-[16/9] w-full rounded-t-2xl object-cover"
           />
           <div className="flex flex-wrap items-center justify-between gap-2 p-5">
-            <Label>{ZONES.length} zones tracked</Label>
+            <Label>
+              {online
+                ? `${calibratedZones.length} EdgeSight zones · ${ZONES.length} showcase codes`
+                : `${ZONES.length} zones tracked`}
+            </Label>
             <span className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-              Copy to keep in view before 15:00 peak
+              {online ? "Calibrated polygons drive queue/staff" : "Copy to keep in view before 15:00 peak"}
             </span>
           </div>
         </Panel>

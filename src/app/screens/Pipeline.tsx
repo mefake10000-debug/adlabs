@@ -19,6 +19,8 @@ import {
   formatDwell,
 } from "../../lib/edgesight"
 import {
+  DUAL_DEPLOYMENT,
+  FULL_SCOPE_MATRIX,
   HONESTY_BARS,
   MODEL_STATUS_LEGEND,
   MODELS_EXISTING,
@@ -35,7 +37,19 @@ const STATUS_COLOR: Record<ModelStatus, string> = {
   proxy: "#5ac8fa",
   next: "var(--app-accent)",
   learns: "#AF52DE",
+  future: "#AF52DE",
   "no-cv": "var(--app-faint)",
+}
+
+const MATURITY_TONE: Record<string, string> = {
+  Live: "var(--app-pos)",
+  Demo: "var(--app-gold)",
+  Partial: "var(--app-gold)",
+  "Integrate next": "var(--app-accent)",
+  Learns: "#AF52DE",
+  Future: "#AF52DE",
+  "Not CV": "var(--app-faint)",
+  Blocked: "#FF3B30",
 }
 
 export function Pipeline() {
@@ -51,7 +65,7 @@ export function Pipeline() {
         icon={Layers}
         eyebrow="Models pack · EdgeSight"
         title="Models & EdgeSight"
-        sub="Live CV from :8000 when Docker is up · pack weights stay segregated under models/pack/ · Calibration / ops on the Live ops screen."
+        sub="Live CV from :8000 when Docker is up · full planned scope matrix below · pack weights segregated · Calibration / ops on Live ops."
       >
         <Chip tone={sourceChip.tone} title={sourceChip.title}>
           {sourceChip.label}
@@ -137,9 +151,17 @@ export function Pipeline() {
             <ExtLink href={EDGE_SIGHT_CALIB_URL}>Calibration Studio :8000</ExtLink>
             <ExtLink href={EDGE_SIGHT_DOCS_URL}>API docs</ExtLink>
           </div>
+          {(status?.cameras?.length ?? 0) > 0 && (
+            <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
+              Cameras from EdgeSight:{" "}
+              <span className="font-mono text-[var(--app-sub)]">{(status?.cameras ?? []).join(", ")}</span>
+              {" · "}
+              Multi-cam ReID / occupancy dedup still <span className="text-[var(--app-gold)]">Future</span>.
+            </p>
+          )}
         </Panel>
 
-        <Panel title="Pipeline stages" sub="Detect → track → zones → attributes → metrics">
+        <Panel title="Pipeline stages" sub="Detect → track → zones → enrichment → metrics">
           <ol className="flex flex-col gap-2.5">
             {PIPELINE_STAGES.map((s) => (
               <li
@@ -184,8 +206,20 @@ export function Pipeline() {
       )}
 
       <Panel
+        title="Dual deployment"
+        sub="Edge AI and Cloud are peers — same storefront signals"
+        verified="DPDP · GDPR"
+      >
+        <ul className="flex flex-col gap-2 font-inter cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
+          <li>· {DUAL_DEPLOYMENT.edge}</li>
+          <li>· {DUAL_DEPLOYMENT.cloud}</li>
+          <li>· {DUAL_DEPLOYMENT.shared}</li>
+        </ul>
+      </Panel>
+
+      <Panel
         title="Segregated pack · download & Docker"
-        sub="Next-integrate weights live under models/pack/ — not mixed into production models/*.pt until wired."
+        sub="Next-integrate weights under models/pack/ — not mixed into production models/*.pt until wired."
         action={<Label>{PACK_RUN_HINTS.branch}</Label>}
         verified="Friend-readable"
       >
@@ -196,19 +230,30 @@ export function Pipeline() {
               <p className="mt-1 font-inter cosmic-text-xs font-semibold text-[var(--app-text)]">{f.role}</p>
               <p className="mt-0.5 font-mono cosmic-text-2xs text-[var(--app-faint)]">{f.weight}</p>
               <p className="mt-2 font-inter cosmic-text-2xs text-[var(--app-sub)]">{f.status}</p>
+              {f.url ? (
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block font-mono cosmic-text-2xs text-[var(--app-accent)] underline"
+                >
+                  download URL
+                </a>
+              ) : null}
             </div>
           ))}
         </div>
         <pre className="mt-4 overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-raise)] p-4 font-mono cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
-{`# ADLabs-dev (branch mefake/integration or integration)
+{`# ADLabs-dev · mefake/integration
 cd ~/Desktop/ad-labs-project/repos/ADLabs-dev
+${PACK_RUN_HINTS.downloadProd}
 ${PACK_RUN_HINTS.download}
 ${PACK_RUN_HINTS.docker}
 # mount: ${PACK_RUN_HINTS.mount}`}
         </pre>
         <p className="mt-3 flex items-start gap-2 font-inter cosmic-text-xs text-[var(--app-faint)]">
           <Download size={12} className="mt-0.5 shrink-0" />
-          Weights are gitignored. Re-run the download script on any machine; OSNet stays default-off (no face ReID).
+          Weights are gitignored. Re-run download scripts on any machine; OSNet stays default-off (no face ReID).
         </p>
       </Panel>
 
@@ -230,6 +275,49 @@ ${PACK_RUN_HINTS.docker}
               {l.label}
             </span>
           ))}
+        </div>
+      </Panel>
+
+      <Panel
+        title="Full scope matrix"
+        sub="Every planned model/capability from the models pack — Live · Demo · Partial · Next · Future · Not CV"
+        action={<Label>{FULL_SCOPE_MATRIX.length} rows</Label>}
+        verified="Anti-hallucination"
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-left">
+            <thead>
+              <tr className="border-b border-[var(--app-line)] font-inter cosmic-text-2xs uppercase tracking-[0.08em] text-[var(--app-faint)]">
+                <th className="pb-2 pr-3 font-semibold">Capability</th>
+                <th className="pb-2 pr-3 font-semibold">Maturity</th>
+                <th className="pb-2 pr-3 font-semibold">Weight / code</th>
+                <th className="pb-2 font-semibold">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FULL_SCOPE_MATRIX.map((row) => (
+                <tr key={row.id} className="border-b border-[var(--app-line)]/60 align-top">
+                  <td className="py-2.5 pr-3 font-inter cosmic-text-xs font-semibold text-[var(--app-text)]">
+                    {row.capability}
+                    <div className="mt-0.5 font-normal text-[var(--app-faint)]">{row.planned}</div>
+                  </td>
+                  <td className="py-2.5 pr-3">
+                    <span
+                      className="inline-flex rounded-full px-2 py-0.5 font-inter cosmic-text-2xs font-semibold"
+                      style={{
+                        color: MATURITY_TONE[row.maturity] ?? "var(--app-sub)",
+                        background: `color-mix(in srgb, ${MATURITY_TONE[row.maturity] ?? "var(--app-faint)"} 14%, transparent)`,
+                      }}
+                    >
+                      {row.maturity}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-3 font-mono cosmic-text-2xs text-[var(--app-sub)]">{row.weightOrCode}</td>
+                  <td className="py-2.5 font-inter cosmic-text-xs text-[var(--app-faint)]">{row.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Panel>
 

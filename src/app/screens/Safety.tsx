@@ -1,6 +1,8 @@
 import { ShieldAlert } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
-import { SAFETY_CAUTIONS, SIMULATED_NOTE, ALERTS } from "../../data/dashboard"
+import { SAFETY_CAUTIONS, SIMULATED_NOTE } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
+import { formatWait } from "../../lib/edgesight"
 
 const KIND_STYLE: Record<string, string> = {
   cv: "var(--app-accent)",
@@ -9,15 +11,55 @@ const KIND_STYLE: Record<string, string> = {
 }
 
 export function Safety() {
+  const { alertsLive, occupancy, sourceChip, online, status } = useEdgeSight()
   const s = SAFETY_CAUTIONS
-  const loss = ALERTS.filter((a) => a.category === "loss-risk" || a.category === "safety")
+  const loss = alertsLive.filter((a) => a.category === "loss-risk" || a.category === "safety")
+  const queueLive = alertsLive.find((a) => a.live && a.category === "ops")
 
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={ShieldAlert} eyebrow="Owner actions" title={s.title} sub={s.sub}>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         <Chip tone="gold">Ops cautions</Chip>
-        <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+        {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
       </ScreenHeader>
+
+      {online && (
+        <Panel
+          title="Live CV signals"
+          sub="Only what /api/v1/live exposes today — not a certified fire/security alarm."
+          action={<Label>EdgeSight</Label>}
+        >
+          <ul className="grid gap-2.5 sm:grid-cols-3">
+            <li className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+              <p className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Occupancy</p>
+              <p className="mt-1 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{occupancy.now}</p>
+            </li>
+            <li className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+              <p className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Queue</p>
+              <p className="mt-1 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
+                {occupancy.queue} · {occupancy.avgWait}
+              </p>
+            </li>
+            <li className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+              <p className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Queue alert</p>
+              <p
+                className="mt-1 font-inter cosmic-text-sm font-bold"
+                style={{ color: status?.live?.queue_alert_active ? "var(--app-neg)" : "var(--app-pos)" }}
+              >
+                {status?.live?.queue_alert_active
+                  ? `Active · wait ${formatWait(status.live.avg_queue_wait_seconds)}`
+                  : "Clear"}
+              </p>
+            </li>
+          </ul>
+          {queueLive && (
+            <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-accent)]">
+              Live: {queueLive.message} — {queueLive.action}
+            </p>
+          )}
+        </Panel>
+      )}
 
       <div
         className="rounded-2xl border px-4 py-3.5 font-inter cosmic-text-xs leading-relaxed"

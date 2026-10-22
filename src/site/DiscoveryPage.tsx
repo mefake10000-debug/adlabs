@@ -421,7 +421,7 @@ export function DiscoveryPage() {
                   Pilot program · 10 founding seats · {BRAND.city}
                 </p>
 
-                <h1 className="mt-5 max-w-3xl font-serif cosmic-text-4xl sm:cosmic-text-5xl font-semibold leading-[1.08] tracking-[-0.02em] cosmic-text">
+                <h1 className="mt-5 max-w-3xl font-serif text-[40px] font-semibold leading-[1.05] tracking-[-0.025em] cosmic-text sm:mt-6 sm:text-[50px] lg:text-[58px]">
                   Scope a pilot.{" "}
                   Pick <em className="em-accent">Edge or Cloud.</em>
                 </h1>
@@ -442,7 +442,8 @@ export function DiscoveryPage() {
                   </a>
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 rounded-full cosmic-border cosmic-gradient-violet/10 px-7 py-3.5 cosmic-text-base font-medium" style={{ color: "var(--cosmic-text)" }}
+                    className="inline-flex items-center gap-2 rounded-full px-7 py-3.5 cosmic-text-base font-medium transition-all duration-200 hover:bg-white/5"
+                    style={{ color: "var(--cosmic-text)", border: "1px solid var(--cosmic-border)" }}
                   >
                     See the live demo
                   </Link>
@@ -511,11 +512,11 @@ export function DiscoveryPage() {
             </div>
 
             {/* Stat strip */}
-            <div className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl cosmic-border" style={{ background: "rgba(255,255,255,0.1)" }}>
+            <div className="mt-14 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10" style={{ background: "rgba(255,255,255,0.1)" }}>
               {STAT_STRIP.map((s) => (
                 <div key={s.label} className="bg-[#05050a] px-6 py-5">
-                  <p className="cosmic-text-2xl font-bold leading-none text-[#f5f5f7]">{s.value}</p>
-                  <p className="mt-2 cosmic-text-xs leading-tight text-[#86868b]">{s.label}</p>
+                  <p className="font-mono text-[26px] font-bold leading-none tracking-[-0.02em] text-[#f5f5f7]">{s.value}</p>
+                  <p className="mt-2.5 font-mono cosmic-text-2xs uppercase tracking-[0.14em] text-[#86868b]">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -523,12 +524,12 @@ export function DiscoveryPage() {
         </section>
 
         {/* ---------- PURPOSE — why this exists ---------- */}
-        <section className="scroll-mt-24 border-t border-white/8 bg-[#0c0c0f] py-14 sm:py-16">
+        <section className="scroll-mt-24 border-t border-white/[0.08] bg-[#0c0c14] py-14 sm:py-16">
           <div className="mx-auto max-w-[1200px] px-6">
             <div className="grid lg:grid-cols-[1fr_1.4fr] lg:gap-12">
               <div>
-                <p className="cosmic-text-xs font-semibold uppercase tracking-[0.16em] text-[#8B7CF6]">The purpose</p>
-                <h2 className="mt-3 cosmic-text-3xl font-bold leading-[1.08] tracking-[-0.025em] text-[#f5f5f7] sm:cosmic-text-3xl">
+                <p className="font-mono cosmic-text-2xs font-semibold uppercase tracking-[0.2em] text-[#8B7CF6]">01 · The purpose</p>
+                <h2 className="mt-4 text-[26px] font-bold leading-[1.1] tracking-[-0.02em] text-[#f5f5f7] sm:text-[32px]">
                   Built to answer the question{" "}
                   <em className="em-accent">every brand owner can&apos;t get answered.</em>
                 </h2>
@@ -546,7 +547,7 @@ export function DiscoveryPage() {
                 ].map((c) => {
                   const Icon = c.icon
                   return (
-                    <div key={c.t} className="rounded-2xl border border-white/8 bg-[#12121a] p-5">
+                    <div key={c.t} className="rounded-2xl border border-white/[0.08] bg-[#12121a] p-5 transition-colors duration-300 hover:border-[#8B7CF6]/30">
                       <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#8B7CF6]/12 text-[#8B7CF6]">
                         <Icon size={17} strokeWidth={2} />
                       </span>
@@ -1216,7 +1217,7 @@ function Seat({ answers, set: _set }: { answers: DiscoveryAnswers; set: Setter }
   const labelCls = "mb-1.5 block cosmic-text-sm font-medium text-[#f5f5f7]"
 
   return (
-    <section id="seat" className="scroll-mt-32 border-t border-white/8 bg-[#05050a] py-12 sm:py-16 lg:py-20">
+    <section id="seat" className="scroll-mt-32 border-t border-white/[0.08] bg-[#05050a] py-12 sm:py-16 lg:py-20">
       <div className="mx-auto max-w-[1200px] px-6">
         <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           {/* Left — summary of what they just chose */}
@@ -1385,7 +1386,8 @@ function Seat({ answers, set: _set }: { answers: DiscoveryAnswers; set: Setter }
                   <button
                     type="submit"
                     disabled={sending}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#8B7CF6] px-7 py-3.5 cosmic-text-base font-semibold text-[#05050a] transition-all duration-200 hover:bg-[#6E5CE6] hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 cosmic-text-base font-semibold text-[#05050a] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(139,124,246,0.35)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                    style={{ background: "linear-gradient(135deg, #8B7CF6 0%, #6E5CE6 100%)" }}
                   >
                     {sending ? (
                       <><Loader2 size={16} className="animate-spin" /> Sending…</>

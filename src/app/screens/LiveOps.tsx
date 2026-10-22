@@ -3,14 +3,20 @@
 import { useEffect, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import {
-  Crosshair, Radio, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Activity,
+  Crosshair, Radio, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Activity, Layers,
 } from "lucide-react"
-import { Panel, Chip, ScreenHeader } from "../ui"
+import { Panel, Chip, ScreenHeader, Label } from "../ui"
+import { useEdgeSightOptional } from "../../hooks/useEdgeSight"
+import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
 
 const CALIB_URL = "http://localhost:8000/"
 const OPS_URL = "http://localhost:8501/"
 const HEALTH_URL = "/api/edgesight/health"
 const DOCS_URL = "http://localhost:8000/docs"
+
+const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
+const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
+const NEXT_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Integrate next" || r.maturity === "Partial").length
 
 type HealthState = "checking" | "live" | "down"
 
@@ -81,8 +87,11 @@ function OpsFrame({
 
 export function LiveOps() {
   const { state, detail, refresh } = useEdgeHealth()
+  const edge = useEdgeSightOptional()
   const live = state === "live"
   const [tab, setTab] = useState<"calib" | "ops">("calib")
+  const cams = edge?.status?.cameras ?? []
+  const device = edge?.status?.device
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,7 +99,7 @@ export function LiveOps() {
         icon={Radio}
         eyebrow="Calibration / Live ops"
         title="EdgeSight live tools"
-        sub="Calibration Studio (:8000) + Streamlit ops (:8501) embedded here. Today / Queues / Demographics pull live EdgeSight when Docker is healthy; Models & EdgeSight shows the pack."
+        sub="Calibration Studio (:8000) + Streamlit ops (:8501). Same layout family as Models & EdgeSight — multi-cam switcher and draw tools are live APIs only."
       >
         <Chip tone={live ? "live" : "gold"}>{live ? "API healthy" : state === "checking" ? "Checking…" : "API down"}</Chip>
         <button
@@ -116,14 +125,42 @@ export function LiveOps() {
         <p className="min-w-0 flex-1 font-inter cosmic-text-xs text-[var(--app-sub)]">
           <span className="font-semibold text-[var(--app-text)]">{detail}</span>
           {" · "}
-          This page embeds <strong className="font-semibold">live</strong> EdgeSight UIs when Docker is up.
-          On <strong className="font-semibold">mefake/integration</strong>, Today / Queues / Demographics / Models also blend live API data;
-          remaining storytelling tiles stay Organic Clothing Co. fixtures (honest labels).
+          Embeds are <strong className="font-semibold">live</strong> EdgeSight when Docker is up.
+          KPI tiles elsewhere blend live tripwire / queue / demographics with Organic Clothing Co. fixtures — maturity badges on Models screen.
+          {" · "}
+          {DUAL_DEPLOYMENT.shared}
         </p>
         <a href={DOCS_URL} target="_blank" rel="noreferrer" className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
           API docs
         </a>
       </motion.div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Panel>
+          <Label>Cameras (API)</Label>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{cams.length || (live ? "—" : "0")}</p>
+          <p className="mt-1 truncate font-mono cosmic-text-2xs text-[var(--app-faint)]">
+            {cams.length ? cams.join(", ") : "Start Docker · switch cams in Calibration Studio"}
+          </p>
+        </Panel>
+        <Panel>
+          <Label>Pipeline FPS</Label>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{device?.pipeline_fps ?? "—"}</p>
+          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">{device?.inference_engine ?? "EdgeSight device health"}</p>
+        </Panel>
+        <Panel>
+          <Label>Scope · Live / next / future</Label>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
+            {LIVE_COUNT} · {NEXT_COUNT} · {FUTURE_COUNT}
+          </p>
+          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">From full-scope matrix · Models screen</p>
+        </Panel>
+        <Panel>
+          <Label>Advanced draw tools</Label>
+          <p className="mt-2 font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">Tripwire · dwell · queue · staff</p>
+          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">Homography / ReID calib = Future</p>
+        </Panel>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         {(
@@ -188,19 +225,29 @@ export function LiveOps() {
 
       <Panel
         title="How to run EdgeSight"
-        sub="Friend-reviewed mefake branches only — never push NuclearQuince or rajendrac3 main."
+        sub="Friend-reviewed mefake/integration only — never push NuclearQuince or rajendrac3 main."
+        action={
+          <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)]">
+            <Layers size={12} /> Sidebar → Models & EdgeSight
+          </span>
+        }
       >
         <pre className="overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-raise)] p-4 font-mono cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
 {`cd ~/Desktop/ad-labs-project/repos/ADLabs-dev
+git checkout mefake/integration
+python scripts/download_models.py
+python scripts/download_pack_models.py
 docker compose up -d
 # optional pack mount:
 docker compose -f docker-compose.yml -f docker-compose.pack.yml up -d
 
-# then open this screen or:
-#   Calibration  http://localhost:8000/
-#   Streamlit    http://localhost:8501/
-#   Website      http://localhost:3000/dashboard/live`}
+# Calibration  http://localhost:8000/
+# Streamlit    http://localhost:8501/
+# Website      http://localhost:3000/dashboard/live`}
         </pre>
+        <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
+          Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}
+        </p>
       </Panel>
     </div>
   )

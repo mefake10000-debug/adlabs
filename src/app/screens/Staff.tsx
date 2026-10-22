@@ -1,6 +1,7 @@
 import { UserCog } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
 import { STAFF_INTEL, SIMULATED_NOTE, MATURITY, STAFFING_INTEL } from "../../data/dashboard"
+import { useEdgeSight } from "../../hooks/useEdgeSight"
 
 const TONE: Record<string, string> = {
   ok: "var(--app-pos)",
@@ -9,20 +10,33 @@ const TONE: Record<string, string> = {
 }
 
 export function Staff() {
-  const s = STAFF_INTEL
+  const { staffLive, sourceChip, online, calibratedZones } = useEdgeSight()
+  const s = staffLive
+  const staffZoneCount = calibratedZones.filter((z) => z.type === "staff").length
 
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={UserCog} eyebrow="Owner actions" title={s.title} sub={s.sub}>
-        <Chip tone="live">{MATURITY.live}</Chip>
-        <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+        <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
+        {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
+        {online && <Chip tone="live">{MATURITY.live}</Chip>}
       </ScreenHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Staff on floor", value: String(s.onFloor), hint: "What you can do: match to peaks below" },
-          { label: "Visitors now", value: String(s.visitorsNow), hint: "Occupancy · tripwire / tracks" },
-          { label: "Staff share", value: s.staffShare, hint: "Staff ÷ people in store" },
+          {
+            label: "Staff zones",
+            value: online ? String(staffZoneCount) : String(s.onFloor),
+            hint: online
+              ? "Calibrated staff polygons (headcount not in live API)"
+              : "What you can do: match to peaks below",
+          },
+          {
+            label: "Visitors now",
+            value: String(s.visitorsNow),
+            hint: online ? "EdgeSight net_occupancy" : "Occupancy · tripwire / tracks",
+          },
+          { label: "Staff share", value: s.staffShare, hint: "Staff ÷ people in store — needs staff count API" },
           { label: "Method", value: "Zone → appear*", hint: s.method },
         ].map((k) => (
           <Panel key={k.label}>
