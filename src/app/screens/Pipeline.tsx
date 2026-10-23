@@ -90,12 +90,14 @@ export function Pipeline() {
           </p>
         </Panel>
         <Panel>
-          <Label>Pipeline FPS</Label>
+          <Label>Infer FPS · mode</Label>
           <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
-            {device?.pipeline_fps ?? "—"}
+            {live?.infer_fps ?? device?.pipeline_fps ?? "—"}
           </p>
           <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            {device?.inference_engine ?? "Start Docker for live FPS"}
+            {live?.models?.perf_mode
+              ? `${live.models.perf_mode} · ${live.models.person_detector ?? "detect"} · decode ${live.decode_fps ?? "—"}`
+              : device?.inference_engine ?? "Start Docker for live FPS"}
           </p>
         </Panel>
         <Panel>
