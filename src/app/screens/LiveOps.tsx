@@ -1,15 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useState, type ReactNode } from "react"
-import { motion } from "framer-motion"
 import {
-  ChevronDown, Crosshair, Radio, RefreshCw, CheckCircle2, AlertCircle, Layers, Video,
+  ChevronDown, Crosshair, Radio, RefreshCw, Layers, Video,
 } from "lucide-react"
-import { Panel, Chip, ScreenHeader, Label } from "../ui"
+import { Panel, Chip, ScreenHeader } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
-import { DataBadge } from "../../components/DataBadge"
 import { LiveSegment } from "../../components/LiveSegment"
-import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
+import { DUAL_DEPLOYMENT } from "../../data/models-pack"
 import {
   EDGE_SIGHT_OPS_EMBED,
   EDGE_SIGHT_PORTAL_CALIB,
@@ -18,12 +16,11 @@ import {
 import { LiveVision } from "../../components/LiveVision"
 import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
 import { IndustryModesPanel } from "../../components/IndustryModesPanel"
+import { JourneyHealth } from "../../components/JourneyHealth"
+import { LiveStoreBrief } from "../../components/LiveStoreBrief"
+import { AccountingFutureCard } from "../../components/AccountingFutureCard"
 import { ModelsStatusPanel } from "./Pipeline"
 import { displayMetric } from "../../lib/data-freshness"
-
-const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
-const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
-const NEXT_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Integrate next" || r.maturity === "Partial").length
 
 type PanelId = "video" | "calib" | "ops" | "models"
 
@@ -75,6 +72,38 @@ function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: str
   }
 }
 
+/** Single header status chip: connection / sync age · colored only for real alerts. */
+function SyncChip({
+  live,
+  checking,
+  ageSeconds,
+  queueAlert,
+}: {
+  live: boolean
+  checking: boolean
+  ageSeconds: number | null
+  queueAlert: boolean
+}) {
+  if (checking) return <Chip tone="neutral">Checking…</Chip>
+  if (!live) return <Chip tone="gold">Offline · start Docker</Chip>
+  const age =
+    ageSeconds != null && Number.isFinite(ageSeconds)
+      ? `Updated ${Math.max(0, Math.round(ageSeconds))}s ago`
+      : "Updated just now"
+  if (queueAlert) {
+    return (
+      <Chip tone="gold" title="queue_alert_active · same live snapshot as In/Present/Out">
+        Queue alert · {age}
+      </Chip>
+    )
+  }
+  return (
+    <Chip tone="neutral" title="Shared live/state snapshot age — one poll clock for all visible numbers">
+      {age}
+    </Chip>
+  )
+}
+
 function OpsFrame({
   title,
   eyebrow,
@@ -95,7 +124,7 @@ function OpsFrame({
           </p>
           <h2 className="font-inter cosmic-text-base font-bold text-[var(--app-text)]">{title}</h2>
         </div>
-        <Chip tone={live ? "live" : "neutral"}>{live ? "EdgeSight reachable" : "Offline · start Docker"}</Chip>
+        {!live ? <Chip tone="gold">Offline</Chip> : null}
       </header>
       <div className="relative bg-[var(--app-raise)]" style={{ minHeight: 420 }}>
         {children}
@@ -107,16 +136,14 @@ function OpsFrame({
 export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
   const edge = useEdgeSight()
   const live = edge.online
-  const detail = live
-    ? edge.status?.health?.service ?? "EdgeSight API"
-    : edge.status?.error ?? "Start ADLabs-dev: docker compose up -d"
   const refresh = edge.refresh
   const [tab, setTab] = useState<PanelId>("video")
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const cams = edge.status?.cameras ?? []
-  const device = edge.status?.device
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
   const badges = edge.sectionBadges
+  const queueAlert = live && Boolean(edge.status?.live?.queue_alert_active)
 
   const needsZones = useMemo(() => {
     const noPolygons = edge.calibratedZones.length === 0 && edge.tripwireCount === 0
@@ -158,16 +185,14 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         icon={Radio}
         eyebrow="Live hub"
         title="Live hub"
-        sub="Industry modes · Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
+        sub="Video · In / Present / Out · store brief. Values stay — / 0 until /api/v1/live answers."
       >
-        <DataBadge badge={badges.connectivity} />
-        <DataBadge badge={badges.camera_wall} />
-        <Chip tone={live ? "live" : "gold"}>{live ? "API healthy" : state === "checking" ? "Checking…" : "API down"}</Chip>
-        {edge.connectivityAgeSeconds != null && (
-          <Chip tone="neutral" title="live/state updated_epoch">
-            age {edge.connectivityAgeSeconds}s
-          </Chip>
-        )}
+        <SyncChip
+          live={live}
+          checking={state === "checking"}
+          ageSeconds={edge.connectivityAgeSeconds}
+          queueAlert={queueAlert}
+        />
         <button
           type="button"
           onClick={() => void refresh()}
@@ -176,91 +201,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           <RefreshCw size={12} /> Refresh
         </button>
       </ScreenHeader>
-
-      <IndustryModesPanel />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <LiveSegment
-          title="Entries in"
-          brief="Session tripwire IN — same path video detections use."
-          value={edge.heroFlow.entriesIn}
-          sourcePath={edge.heroFlow.entriesPath}
-          badge={badges.entrance_tripwires}
-          empty={!live || edge.heroFlow.entriesIn == null}
-        />
-        <LiveSegment
-          title="People present"
-          brief="Active customer tracks — matches YOLO HUD count."
-          value={edge.heroFlow.peoplePresent}
-          sourcePath={edge.heroFlow.presentPath}
-          badge={badges.today}
-          empty={!live || edge.heroFlow.peoplePresent == null}
-        />
-        <LiveSegment
-          title="Exits"
-          brief="Session tripwire OUT."
-          value={edge.heroFlow.exitsOut}
-          sourcePath={edge.heroFlow.exitsPath}
-          badge={badges.entrance_tripwires}
-          empty={!live || edge.heroFlow.exitsOut == null}
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <LiveSegment
-          title="Queue"
-          brief="People in queue polygons · alert when congested."
-          value={live ? `${displayMetric(edge.queueLength)}${edge.status?.live?.queue_alert_active ? " · alert" : ""}` : null}
-          sourcePath="/api/v1/live · queue_length"
-          badge={badges.queues}
-        />
-        <LiveSegment
-          title="Infer FPS"
-          brief="Detect+track cadence (MODEL). FEED tracks display/decode."
-          value={edge.status?.live?.infer_fps ?? device?.pipeline_fps ?? null}
-          sourcePath="/api/v1/live · infer_fps"
-          badge={badges.camera_wall}
-        />
-        <LiveSegment
-          title="Cameras"
-          brief="Ordered from cameras.yaml / live.cameras."
-          value={live ? cams.length : null}
-          sourcePath={cams.length ? cams.join(", ") : "/api/v1/cameras"}
-          badge={badges.camera_wall}
-        />
-        <LiveSegment
-          title="Zones · tripwires"
-          brief="Calibrated polygons that drive In / Present / Out."
-          value={live ? `${edge.calibratedZones.length} · ${edge.tripwireCount} trip` : null}
-          sourcePath="/api/v1/config/cameras"
-          badge={badges.entrance_tripwires}
-        />
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--app-line)] px-4 py-3"
-        style={{ background: "var(--app-card)" }}
-      >
-        {live ? (
-          <CheckCircle2 size={16} className="text-[var(--app-pos)]" />
-        ) : (
-          <AlertCircle size={16} className="text-[var(--app-gold)]" />
-        )}
-        <p className="min-w-0 flex-1 font-inter cosmic-text-xs text-[var(--app-sub)]">
-          <span className="font-semibold text-[var(--app-text)]">{detail}</span>
-          {" · "}
-          Stay on <code className="font-mono text-[var(--app-text)]">localhost:3000/dashboard/live</code>
-          {" — "}
-          zone editor and advanced ops are embedded here. {DUAL_DEPLOYMENT.shared}
-        </p>
-        <a href={EDGE_SIGHT_PORTAL_DOCS} className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
-          API docs
-        </a>
-      </motion.div>
-
-      <IntelligenceParityPanel sectionBadges={badges} />
 
       {/* Guided flow: Live primary · Set up zones secondary · Advanced nested tertiary */}
       <div
@@ -319,26 +259,11 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             ) : null}
           </button>
 
-          <button
-            type="button"
-            onClick={() => selectTab("models")}
-            className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-semibold transition-colors"
-            style={{
-              borderColor: tab === "models" ? "var(--app-accent)" : "var(--app-line)",
-              background: tab === "models" ? "var(--app-accent-soft)" : "transparent",
-              color: tab === "models" ? "var(--app-accent)" : "var(--app-sub)",
-            }}
-            aria-current={tab === "models" ? "page" : undefined}
-          >
-            <Layers size={14} />
-            Models status
-          </button>
-
           <div className="ml-auto flex flex-col items-stretch gap-1 sm:items-end">
             <button
               type="button"
               onClick={() => {
-                if (tab === "ops") {
+                if (tab === "ops" || tab === "models") {
                   setAdvancedOpen((o) => !o)
                 } else {
                   setAdvancedOpen(true)
@@ -347,32 +272,49 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
               }}
               className="inline-flex items-center gap-1.5 self-end rounded-lg px-2.5 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)] transition-colors hover:text-[var(--app-sub)]"
               style={{
-                color: tab === "ops" ? "var(--app-sub)" : undefined,
-                background: tab === "ops" ? "var(--app-raise)" : "transparent",
+                color: tab === "ops" || tab === "models" ? "var(--app-sub)" : undefined,
+                background: tab === "ops" || tab === "models" ? "var(--app-raise)" : "transparent",
               }}
-              aria-expanded={advancedOpen || tab === "ops"}
+              aria-expanded={advancedOpen || tab === "ops" || tab === "models"}
             >
               Advanced
               <ChevronDown
                 size={14}
                 className="transition-transform"
-                style={{ transform: advancedOpen || tab === "ops" ? "rotate(180deg)" : undefined }}
+                style={{
+                  transform:
+                    advancedOpen || tab === "ops" || tab === "models" ? "rotate(180deg)" : undefined,
+                }}
               />
             </button>
-            {(advancedOpen || tab === "ops") && (
-              <button
-                type="button"
-                onClick={() => selectTab("ops")}
-                className="inline-flex items-center justify-end gap-1.5 rounded-lg border border-[var(--app-line)] px-2.5 py-1.5 font-inter cosmic-text-2xs font-semibold transition-colors"
-                style={{
-                  borderColor: tab === "ops" ? "var(--app-line)" : "var(--app-line)",
-                  background: tab === "ops" ? "var(--app-raise)" : "transparent",
-                  color: tab === "ops" ? "var(--app-text)" : "var(--app-faint)",
-                }}
-                aria-current={tab === "ops" ? "page" : undefined}
-              >
-                Ops tools
-              </button>
+            {(advancedOpen || tab === "ops" || tab === "models") && (
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => selectTab("ops")}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] px-2.5 py-1.5 font-inter cosmic-text-2xs font-semibold transition-colors"
+                  style={{
+                    background: tab === "ops" ? "var(--app-raise)" : "transparent",
+                    color: tab === "ops" ? "var(--app-text)" : "var(--app-faint)",
+                  }}
+                  aria-current={tab === "ops" ? "page" : undefined}
+                >
+                  Ops tools
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectTab("models")}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--app-line)] px-2.5 py-1.5 font-inter cosmic-text-2xs font-semibold transition-colors"
+                  style={{
+                    background: tab === "models" ? "var(--app-raise)" : "transparent",
+                    color: tab === "models" ? "var(--app-text)" : "var(--app-faint)",
+                  }}
+                  aria-current={tab === "models" ? "page" : undefined}
+                >
+                  <Layers size={12} />
+                  Models status
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -385,7 +327,110 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
       </div>
 
       {tab === "video" ? (
-        <LiveVision cameraId={streamCam} />
+        <>
+          <LiveVision cameraId={streamCam} videoOnly />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <LiveSegment
+              title="In"
+              brief="Session tripwire IN."
+              value={edge.heroFlow.entriesIn}
+              sourcePath={edge.heroFlow.entriesPath}
+              empty={!live || edge.heroFlow.entriesIn == null}
+            />
+            <LiveSegment
+              title="Present"
+              brief="Active customer tracks."
+              value={edge.heroFlow.peoplePresent}
+              sourcePath={edge.heroFlow.presentPath}
+              empty={!live || edge.heroFlow.peoplePresent == null}
+            />
+            <LiveSegment
+              title="Out"
+              brief="Session tripwire OUT."
+              value={edge.heroFlow.exitsOut}
+              sourcePath={edge.heroFlow.exitsPath}
+              empty={!live || edge.heroFlow.exitsOut == null}
+            />
+          </div>
+
+          <LiveStoreBrief
+            online={live}
+            live={edge.status?.live}
+            journey={edge.status?.live?.journey}
+            error={edge.status?.error}
+          />
+
+          <div
+            className="rounded-2xl border border-[var(--app-line)]"
+            style={{ background: "var(--app-card)" }}
+          >
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left sm:px-5"
+              aria-expanded={moreOpen}
+            >
+              <div>
+                <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
+                  More insights
+                </p>
+                <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
+                  Industry modes · journey · queue/FPS · parity · playbooks
+                </p>
+              </div>
+              <ChevronDown
+                size={16}
+                className="shrink-0 text-[var(--app-faint)] transition-transform"
+                style={{ transform: moreOpen ? "rotate(180deg)" : undefined }}
+              />
+            </button>
+
+            {moreOpen ? (
+              <div className="space-y-4 border-t border-[var(--app-line)] px-4 py-4 sm:px-5">
+                <IndustryModesPanel />
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <LiveSegment
+                    title="Queue"
+                    brief="People in queue polygons."
+                    value={
+                      live
+                        ? `${displayMetric(edge.queueLength)}${edge.status?.live?.queue_alert_active ? " · alert" : ""}`
+                        : null
+                    }
+                    sourcePath="/api/v1/live · queue_length"
+                  />
+                  <LiveSegment
+                    title="Infer FPS"
+                    brief="Detect+track cadence."
+                    value={edge.status?.live?.infer_fps ?? edge.status?.device?.pipeline_fps ?? null}
+                    sourcePath="/api/v1/live · infer_fps"
+                  />
+                  <LiveSegment
+                    title="Cameras"
+                    brief="From cameras.yaml / live.cameras."
+                    value={live ? cams.length : null}
+                    sourcePath={cams.length ? cams.join(", ") : "/api/v1/cameras"}
+                  />
+                  <LiveSegment
+                    title="Zones · tripwires"
+                    brief="Polygons that drive In / Present / Out."
+                    value={live ? `${edge.calibratedZones.length} · ${edge.tripwireCount} trip` : null}
+                    sourcePath="/api/v1/config/cameras"
+                  />
+                </div>
+
+                <JourneyHealth online={live} journey={edge.status?.live?.journey} />
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <AccountingFutureCard />
+                  <IntelligenceParityPanel sectionBadges={badges} />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </>
       ) : tab === "calib" ? (
         <OpsFrame
           eyebrow="/dashboard/live/calibrate → zone editor"
@@ -404,26 +449,21 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           )}
         </OpsFrame>
       ) : tab === "ops" ? (
-        <div className="space-y-2">
-          <div className="flex justify-end">
-            <DataBadge badge={badges.legacy_ops} />
-          </div>
-          <OpsFrame
-            eyebrow="/dashboard/live/ops · Advanced"
-            title="Ops tools"
-            live={live}
-          >
-            {live ? (
-              <iframe
-                title="Advanced ops tools"
-                src={EDGE_SIGHT_OPS_EMBED}
-                className="h-[min(72vh,720px)] w-full border-0"
-              />
-            ) : (
-              <OfflineHint name="Ops tools" />
-            )}
-          </OpsFrame>
-        </div>
+        <OpsFrame
+          eyebrow="/dashboard/live/ops · Advanced"
+          title="Ops tools"
+          live={live}
+        >
+          {live ? (
+            <iframe
+              title="Advanced ops tools"
+              src={EDGE_SIGHT_OPS_EMBED}
+              className="h-[min(72vh,720px)] w-full border-0"
+            />
+          ) : (
+            <OfflineHint name="Ops tools" />
+          )}
+        </OpsFrame>
       ) : (
         <ModelsStatusPanel embedded />
       )}
@@ -432,9 +472,9 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         title="How to run EdgeSight"
         sub="Friend-reviewed mefake/integration only — never push NuclearQuince or rajendrac3 main."
         action={
-          <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)]">
-            <Layers size={12} /> Sidebar → Live hub
-          </span>
+          <a href={EDGE_SIGHT_PORTAL_DOCS} className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
+            API docs
+          </a>
         }
       >
         <pre className="overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-raise)] p-4 font-mono cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
@@ -445,14 +485,10 @@ python scripts/download_pack_models.py
 docker compose up -d
 
 # Portal (only URL you need):
-#   http://localhost:3000/dashboard
-#   http://localhost:3000/dashboard/live               ← Live hub (default)
-#   http://localhost:3000/dashboard/live?panel=calib   ← Set up zones
-#   http://localhost:3000/dashboard/live?panel=ops     ← Advanced · Ops tools
-#   http://localhost:3000/dashboard/live?panel=models  ← Models status
-# Backends (Docker only — proxied into the portal):
-#   Zone editor  → /dashboard/live/calibrate  (:8000)
-#   Ops tools    → /dashboard/live/ops        (:8501)`}
+#   http://localhost:3000/dashboard/live
+#   http://localhost:3000/dashboard/live?panel=calib
+#   http://localhost:3000/dashboard/live?panel=ops
+#   http://localhost:3000/dashboard/live?panel=models`}
         </pre>
         <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
           Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}

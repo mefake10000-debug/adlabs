@@ -5,8 +5,7 @@ import { Video } from "lucide-react"
 import { edgeSightStreamPath } from "../lib/edgesight"
 import { displayMetric } from "../lib/data-freshness"
 import { useEdgeSightOptional } from "../hooks/useEdgeSight"
-import { DataBadge } from "./DataBadge"
-import { Chip, Label } from "../app/ui"
+import { Label } from "../app/ui"
 
 type Props = {
   /** Override camera; defaults to first EdgeSight camera / cameras.yaml primary */
@@ -14,13 +13,18 @@ type Props = {
   className?: string
   /** Compact strip for Today; full for Live ops */
   compact?: boolean
+  /**
+   * Live-hub default: video plane only — KPIs live in the page In/Present/Out row.
+   * No status chips; snapshot age is shown once in the page header.
+   */
+  videoOnly?: boolean
 }
 
 /**
  * Classic YOLO-demo pane: MJPEG with person/staff/zone/tripwire overlays from EdgeSight.
  * Numbers beside it come from the shared EdgeSightProvider (live_snapshot / live/state).
  */
-export function LiveVision({ cameraId, className = "", compact = false }: Props) {
+export function LiveVision({ cameraId, className = "", compact = false, videoOnly = false }: Props) {
   const edge = useEdgeSightOptional()
   const cams = edge?.status?.cameras ?? []
   const fallback = edge?.primaryCameraId ?? cams[0] ?? "cam_entrance_01"
@@ -35,8 +39,6 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
   const live = edge?.status?.live
   const camState = edge?.liveState?.cameras.find((c) => c.camera_id === cam)
   const streamSrc = useMemo(() => edgeSightStreamPath(cam), [cam])
-  const wallBadge = edge?.sectionBadges.camera_wall
-  const tripBadge = edge?.sectionBadges.entrance_tripwires
 
   const people = camState?.counts.people_now ?? live?.people_now ?? live?.net_occupancy ?? null
   const queue =
@@ -45,7 +47,6 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
     null
   const entriesIn = camState?.counts.tripwire_in_cumulative
   const entriesOut = camState?.counts.tripwire_out_cumulative
-  const source = live?.source === "live_snapshot" ? "YOLO live" : online ? "EdgeSight" : "Offline"
 
   return (
     <div
@@ -62,12 +63,10 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
             Person detect + track + zones
           </p>
         </div>
-        {wallBadge && <DataBadge badge={wallBadge} />}
-        <Chip tone={online ? "live" : "neutral"}>{source}</Chip>
       </header>
 
       {online ? (
-        <div className={`grid ${compact ? "" : "xl:grid-cols-[1.5fr_1fr]"}`}>
+        <div className={`grid ${videoOnly || compact ? "" : "xl:grid-cols-[1.5fr_1fr]"}`}>
           <div className="bg-black">
             {cams.length > 1 && (
               <div className="flex flex-wrap gap-1.5 border-b border-white/10 px-3 py-2">
@@ -93,82 +92,84 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
               key={cam}
               src={streamSrc}
               alt={`YOLO annotated stream ${cam}`}
-              className={`w-full bg-black object-contain ${compact ? "max-h-[min(42vh,420px)]" : "max-h-[min(64vh,640px)]"}`}
+              className={`w-full bg-black object-contain ${compact || videoOnly ? "max-h-[min(56vh,560px)]" : "max-h-[min(64vh,640px)]"}`}
             />
           </div>
 
-          <div className={`grid gap-2 p-4 sm:grid-cols-2 ${compact ? "grid-cols-2 xl:grid-cols-4" : "xl:grid-cols-1"}`}>
-            <Stat label="People now" value={displayMetric(people)} hint="Active tracks · matches boxes" />
-            <Stat
-              label="Queue"
-              value={displayMetric(queue)}
-              hint={`Wait ${edge?.occupancy.avgWait ?? "—"}`}
-            />
-            <Stat
-              label="Tripwire IN / OUT"
-              value={`${displayMetric(entriesIn)} / ${displayMetric(entriesOut)}`}
-              hint="Cumulative · live/state"
-            />
-            <Stat
-              label="Glass stop-rate"
-              value={
-                live?.stop_rate != null
-                  ? `${Math.round(live.stop_rate * 100)}%`
-                  : "—"
-              }
-              hint={
-                live?.entrance?.badge_copy
+          {!videoOnly && (
+            <div className={`grid gap-2 p-4 sm:grid-cols-2 ${compact ? "grid-cols-2 xl:grid-cols-4" : "xl:grid-cols-1"}`}>
+              <Stat label="People now" value={displayMetric(people)} hint="Active tracks · matches boxes" />
+              <Stat
+                label="Queue"
+                value={displayMetric(queue)}
+                hint={`Wait ${edge?.occupancy.avgWait ?? "—"}`}
+              />
+              <Stat
+                label="Tripwire IN / OUT"
+                value={`${displayMetric(entriesIn)} / ${displayMetric(entriesOut)}`}
+                hint="Cumulative · live/state"
+              />
+              <Stat
+                label="Glass stop-rate"
+                value={
+                  live?.stop_rate != null
+                    ? `${Math.round(live.stop_rate * 100)}%`
+                    : "—"
+                }
+                hint={
+                  live?.entrance?.badge_copy
                   || (live?.entrance?.status === "FUTURE"
                     ? "Needs glass ROI — nothing invented"
                     : "entrance.stop_rate")
-              }
-            />
-            <Stat
-              label="Infer FPS"
-              value={live?.infer_fps != null ? String(live.infer_fps) : "—"}
-              hint={[
-                live?.models?.perf_mode ?? live?.perf_mode,
-                live?.models?.person_detector,
-                live?.models?.imgsz != null ? `imgsz ${live.models.imgsz}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "person_detector"}
-            />
-            <Stat
-              label="Display FPS"
-              value={
-                live?.display_fps != null
-                  ? String(live.display_fps)
-                  : live?.decode_fps != null
-                    ? String(live.decode_fps)
-                    : "—"
-              }
-              hint="Annotated JPEG / MJPEG · boxes update at Infer FPS"
-            />
-            {tripBadge && (
-              <div className="sm:col-span-2 xl:col-span-1 flex items-center gap-2">
-                <DataBadge badge={tripBadge} />
-                <span className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Entrance tripwires</span>
-              </div>
-            )}
-            {!compact && (live?.per_camera?.length ?? 0) > 0 && (
-              <div className="sm:col-span-2 xl:col-span-1 space-y-1">
-                <Label>Per camera</Label>
-                {live!.per_camera!.map((c) => (
-                  <p key={c.camera_id} className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
-                    {c.camera_id}: people {c.occupancy} · q {c.queue_length}
-                    {c.infer_fps != null ? ` · ${c.infer_fps} FPS` : ""}
-                  </p>
-                ))}
-              </div>
-            )}
-            {!compact && (
-              <p className="sm:col-span-2 xl:col-span-1 font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
-                {live?.models?.note ??
-                  "Face boxes (if on) feed k-anon age/gender only — no face ID. Soft ReID / cross-cam IDs = Future. Tripwire & staff zones: Set up zones."}
-              </p>
-            )}
-          </div>
+                }
+              />
+              <Stat
+                label="Infer FPS"
+                value={live?.infer_fps != null ? String(live.infer_fps) : "—"}
+                hint={[
+                  live?.models?.perf_mode ?? live?.perf_mode,
+                  live?.models?.person_detector,
+                  live?.models?.imgsz != null ? `imgsz ${live.models.imgsz}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "person_detector"}
+              />
+              <Stat
+                label="Display FPS"
+                value={
+                  live?.display_fps != null
+                    ? String(live.display_fps)
+                    : live?.decode_fps != null
+                      ? String(live.decode_fps)
+                      : "—"
+                }
+                hint="Annotated JPEG / MJPEG · boxes update at Infer FPS"
+              />
+              {tripBadge && (
+                <div className="sm:col-span-2 xl:col-span-1 flex items-center gap-2">
+                  <DataBadge badge={tripBadge} />
+                  <span className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Entrance tripwires</span>
+                </div>
+              )}
+              {!compact && (live?.per_camera?.length ?? 0) > 0 && (
+                <div className="sm:col-span-2 xl:col-span-1 space-y-1">
+                  <Label>Per camera</Label>
+                  {live!.per_camera!.map((c) => (
+                    <p key={c.camera_id} className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
+                      {c.camera_id}: people {c.occupancy} · q {c.queue_length}
+                      {c.infer_fps != null ? ` · ${c.infer_fps} FPS` : ""}
+                    </p>
+                  ))}
+                </div>
+              )}
+              {!compact && (
+                <p className="sm:col-span-2 xl:col-span-1 font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
+                  {live?.models?.note ??
+                    "Face boxes (if on) feed k-anon age/gender only — no face ID. Soft ReID / cross-cam IDs = Future. Tripwire & staff zones: Set up zones."}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex h-[220px] flex-col items-center justify-center gap-2 px-6 text-center">

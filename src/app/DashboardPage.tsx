@@ -7,7 +7,7 @@ import {
   Sun, Moon, Play, Presentation, ArrowLeft, ShieldCheck,
   BarChart3, Users, Package, Sparkles, History as HistoryIcon, Search,
   Eye, Timer, ShoppingBag, Building2, Repeat, LineChart as LineIcon,
-  UserCog, ShieldAlert, Layers, Radio,
+  UserCog, ShieldAlert, Radio,
 } from "lucide-react"
 import Link from "next/link"
 import { Logo } from "../components/Logo"
@@ -94,12 +94,6 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Model-backed intel",
-    items: [
-      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
-    ],
-  },
-  {
     label: "Live now",
     items: [
       { id: "overview", label: "Today", icon: LayoutDashboard, color: "#8B7CF6" },
@@ -147,12 +141,6 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
     label: "Live portal",
     items: [
       { id: "liveOps", label: "Live", icon: Radio, color: "#34C759" },
-    ],
-  },
-  {
-    label: "Model-backed intel",
-    items: [
-      { id: "pipeline", label: "Models & EdgeSight", icon: Layers, color: "#3ECF8E" },
     ],
   },
   {
