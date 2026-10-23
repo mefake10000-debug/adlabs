@@ -13,6 +13,8 @@ type Props = {
   badge?: DataBadgeModel | null
   /** Force EMPTY when offline / null even if badge missing. */
   empty?: boolean
+  /** Override pill when badge is absent (e.g. FUTURE · NEEDS-HARDWARE). */
+  maturity?: string | null
   className?: string
 }
 
@@ -24,6 +26,7 @@ export function LiveSegment({
   sourcePath,
   badge,
   empty,
+  maturity,
   className = "",
 }: Props) {
   const isEmpty =
@@ -33,6 +36,10 @@ export function LiveSegment({
     value === "—" ||
     value === "nil"
   const shown = isEmpty ? "—" : value
+  const pill = maturity?.trim() || (isEmpty ? "EMPTY" : "LIVE")
+  const pillLive = pill === "LIVE"
+  const pillPartial = pill === "PARTIAL"
+  const pillNeedsHw = pill === "NEEDS-HARDWARE"
 
   return (
     <div
@@ -49,13 +56,19 @@ export function LiveSegment({
           <span
             className="inline-flex items-center rounded-full px-2 py-0.5 font-inter cosmic-text-2xs font-semibold tracking-[0.04em]"
             style={{
-              color: isEmpty ? "var(--app-faint)" : "var(--app-pos)",
-              background: isEmpty
-                ? "var(--app-raise)"
-                : "color-mix(in srgb, var(--app-pos) 14%, transparent)",
+              color: pillLive
+                ? "var(--app-pos)"
+                : pillPartial || pillNeedsHw
+                  ? "var(--app-gold)"
+                  : "var(--app-faint)",
+              background: pillLive
+                ? "color-mix(in srgb, var(--app-pos) 14%, transparent)"
+                : pillNeedsHw
+                  ? "var(--app-accent-soft)"
+                  : "var(--app-raise)",
             }}
           >
-            {isEmpty ? "EMPTY" : "LIVE"}
+            {pill}
           </span>
         )}
       </div>

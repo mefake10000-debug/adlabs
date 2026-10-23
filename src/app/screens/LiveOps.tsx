@@ -17,6 +17,10 @@ import {
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
 import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
+import { IndustryModesPanel } from "../../components/IndustryModesPanel"
+import { JourneyHealth } from "../../components/JourneyHealth"
+import { LiveStoreBrief } from "../../components/LiveStoreBrief"
+import { AccountingFutureCard } from "../../components/AccountingFutureCard"
 import { ModelsStatusPanel } from "./Pipeline"
 import { displayMetric } from "../../lib/data-freshness"
 
@@ -157,7 +161,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         icon={Radio}
         eyebrow="Live hub"
         title="Live hub"
-        sub="One destination: Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
+        sub="Industry modes · Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
       >
         <DataBadge badge={badges.connectivity} />
         <DataBadge badge={badges.camera_wall} />
@@ -175,6 +179,8 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           <RefreshCw size={12} /> Refresh
         </button>
       </ScreenHeader>
+
+      <IndustryModesPanel />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LiveSegment
@@ -258,6 +264,18 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
       </motion.div>
 
       <IntelligenceParityPanel sectionBadges={badges} />
+
+      {/* Video → text: owner brief + journey health. industrySlot left for peer modes. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <LiveStoreBrief
+          online={live}
+          live={edge.status?.live}
+          journey={edge.status?.live?.journey}
+          error={edge.status?.error}
+        />
+        <AccountingFutureCard />
+      </div>
+      <JourneyHealth online={live} journey={edge.status?.live?.journey} />
 
       {/* Guided flow: Live primary · Set up zones secondary · Advanced nested tertiary */}
       <div
