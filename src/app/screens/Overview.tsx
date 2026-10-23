@@ -1,342 +1,218 @@
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { CountUp } from "../../components/CountUp"
-import { OccupancyGauge } from "../Business"
-import { Skeleton } from "../../components/Skeleton"
-import { useMountLoader } from "../../utils/useMountLoader"
+"use client"
+
 import {
   TrendingUp, Store, Megaphone, Map, FileText, Users,
-  Eye, DoorOpen, Timer, Footprints, Clock, Clock3,
+  DoorOpen, LogOut, UserRound, Timer, Layers,
 } from "lucide-react"
-import { Panel, Label, DeltaPill, PeerDot, Segmented, Chip, ScreenHeader, MetricLabel } from "../ui"
-import { AreaChart, FunnelBars, Sparkline } from "../charts"
-import {
-  KPIS, FUNNEL, TENANT,
-  STORES, BRIEF, CAMPAIGNS, ZONES,
-} from "../../data/dashboard"
+import { Panel, Chip, ScreenHeader } from "../ui"
+import { AreaChart } from "../charts"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { LiveVision } from "../../components/LiveVision"
 import { DataBadge } from "../../components/DataBadge"
+import { LiveSegment } from "../../components/LiveSegment"
 import { displayMetric } from "../../lib/data-freshness"
 
-const AFT_CAMPAIGN = CAMPAIGNS[0]
-
-const KPI_ICONS: Record<string, { icon: typeof Eye; tint: string }> = {
-  footfall: { icon: Footprints, tint: "var(--app-accent)" },
-  stop: { icon: Eye, tint: "var(--app-gold)" },
-  walkins: { icon: DoorOpen, tint: "var(--app-pos)" },
-  dwell: { icon: Timer, tint: "var(--app-accent)" },
-}
-
 const QUICK = [
-  { icon: TrendingUp, label: "Entrances", screen: "storefront" as const },
+  { icon: TrendingUp, label: "Live hub", screen: "liveOps" as const },
   { icon: Map, label: "Floor zones", screen: "zones" as const },
   { icon: Users, label: "Queues", screen: "queues" as const },
-  { icon: Megaphone, label: "Window performance", screen: "campaigns" as const },
-  { icon: Store, label: "All stores", screen: "stores" as const },
-  { icon: FileText, label: "Monday brief", screen: "brief" as const },
+  { icon: Megaphone, label: "Window", screen: "campaigns" as const },
+  { icon: Store, label: "Stores", screen: "stores" as const },
+  { icon: FileText, label: "Brief", screen: "brief" as const },
 ]
 
-const TOP_ZONES = [...ZONES].sort((a, b) => b.traffic - a.traffic).slice(0, 4)
-
 export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void }) {
-  const [period, setPeriod] = useState<"Today" | "This week">("Today")
-  const loading = useMountLoader()
   const {
     occupancy,
     trafficHours,
     sourceChip,
     liveKpis,
     status,
-    peopleNow,
     queueLength,
     sectionBadges,
     connectivityAgeSeconds,
+    heroFlow,
   } = useEdgeSight()
   const online = Boolean(status?.online && status.live)
-  const baseKpis = period === "Today" ? KPIS.today : KPIS.week
-  const kpis =
-    period === "Today" && online
-      ? baseKpis.map((k) => {
-          if (k.id === "walkins") {
-            return {
-              ...k,
-              value: liveKpis.entries,
-              deltaNote: "EdgeSight tripwire IN",
-              hint: "Entrance tripwire · live via portal → EdgeSight",
-            }
-          }
-          if (k.id === "dwell") {
-            return {
-              ...k,
-              value: liveKpis.dwell,
-              deltaNote: "EdgeSight avg dwell",
-              hint: "Zone / time-in-frame dwell · live",
-            }
-          }
-          if (k.id === "stop") {
-            return {
-              ...k,
-              value: liveKpis.engagedRatio ?? "—",
-              deltaNote: liveKpis.engagedRatio ? "engaged ratio · not window-stop" : "NO-DATA",
-              hint: liveKpis.engagedRatio
-                ? "Engagement proxy — window-stop rule not shipped"
-                : "engagement null — empty, not demo 7.5%",
-            }
-          }
-          return k
-        })
-      : baseKpis
-  const funnel = period === "Today" ? FUNNEL.today : FUNNEL.week
-  const liveStrip = [
-    {
-      icon: Eye,
-      label: "Engaged",
-      value: online ? (liveKpis.engagedRatio ?? "—") : "7.5%",
-      sub: online
-        ? liveKpis.engagedRatio
-          ? "engaged ratio · Partial (not window-stop)"
-          : "NO-DATA · engagement null"
-        : "window ≥4s · demo (offline)",
-    },
-    {
-      icon: Users,
-      label: "In store",
-      value: online ? displayMetric(peopleNow) : `${occupancy.now}`,
-      sub: online && status?.live?.source === "live_snapshot"
-        ? "active tracks · YOLO"
-        : `of ${occupancy.capacity}`,
-    },
-    {
-      icon: Clock,
-      label: "Queue",
-      value: online
-        ? `${displayMetric(queueLength)} · ${occupancy.avgWait}`
-        : `${occupancy.queue} · ${occupancy.avgWait}`,
-      sub: "checkout wait",
-    },
-    {
-      icon: Clock3,
-      label: "Peak",
-      value: occupancy.peakWindow.split("–")[0]?.trim() || "—",
-      sub: occupancy.peakWindow.includes("–")
-        ? `– ${occupancy.peakWindow.split("–")[1]?.trim()}`
-        : "rollup",
-    },
-  ]
+  const live = status?.live
+  const stale = connectivityAgeSeconds != null && connectivityAgeSeconds > 15
+  const storeLabel = live?.store_id ?? "—"
 
   return (
     <div className="flex flex-col gap-6">
       <ScreenHeader
         eyebrow="Live now"
         title="Today"
-        sub={`${TENANT.name} · ${TENANT.store} — entries, stop rate, dwell, queue.`}
+        sub="Entries in · people present · exits — bound to /api/v1/live. Empty until EdgeSight reports real values."
       >
         <DataBadge badge={sectionBadges.today} />
         <DataBadge badge={sectionBadges.connectivity} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         {connectivityAgeSeconds != null && (
-          <Chip tone="neutral" title="live/state updated_epoch age">
-            age {connectivityAgeSeconds}s
+          <Chip tone={stale ? "gold" : "neutral"} title="live/state updated_epoch age">
+            {stale ? "stale · " : ""}age {connectivityAgeSeconds}s
           </Chip>
         )}
-        <Segmented options={["Today", "This week"] as const} value={period} onChange={setPeriod} />
       </ScreenHeader>
 
-      {/* Live YOLO stream — detections drive the strip KPIs below */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <LiveSegment
+          title="Entries in"
+          brief="Cumulative tripwire IN crossings for this session."
+          value={heroFlow.entriesIn}
+          sourcePath={heroFlow.entriesPath}
+          badge={sectionBadges.entrance_tripwires}
+          empty={!online || heroFlow.entriesIn == null}
+        />
+        <LiveSegment
+          title="People present"
+          brief="Active customer tracks now — matches YOLO overlay boxes."
+          value={heroFlow.peoplePresent}
+          sourcePath={heroFlow.presentPath}
+          badge={sectionBadges.today}
+          empty={!online || heroFlow.peoplePresent == null}
+        />
+        <LiveSegment
+          title="Exits"
+          brief="Cumulative tripwire OUT crossings for this session."
+          value={heroFlow.exitsOut}
+          sourcePath={heroFlow.exitsPath}
+          badge={sectionBadges.entrance_tripwires}
+          empty={!online || heroFlow.exitsOut == null}
+        />
+      </div>
+
       <LiveVision compact />
 
-      {/* What’s happening now */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {liveStrip.map((s) => {
-          const Icon = s.icon
-          return (
-            <div
-              key={s.label}
-              className="flex items-center gap-3 rounded-2xl border border-[var(--app-line)] bg-[var(--app-card)] px-4 py-3.5"
-              style={{ boxShadow: "var(--app-shadow)" }}
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
-                <Icon size={16} strokeWidth={2} />
-              </span>
-              <div className="min-w-0">
-                <p className="font-num cosmic-text-lg font-bold leading-none text-[var(--app-text)]">{s.value}</p>
-                <p className="mt-1 truncate font-inter cosmic-text-2xs text-[var(--app-faint)]">
-                  {s.label} · {s.sub}
-                </p>
-              </div>
-            </div>
-          )
-        })}
+        <LiveSegment
+          title="Queue length"
+          brief="People in calibrated queue zones (≥5s dwell)."
+          value={online ? displayMetric(queueLength) : null}
+          sourcePath="/api/v1/live · queue_length"
+          badge={sectionBadges.queues}
+        />
+        <LiveSegment
+          title="Avg wait"
+          brief="Mean wait across active queue zones."
+          value={online && occupancy.avgWait !== "—" ? occupancy.avgWait : null}
+          sourcePath="/api/v1/live · avg_queue_wait_seconds"
+          badge={sectionBadges.queues}
+        />
+        <LiveSegment
+          title="Avg dwell"
+          brief="Zone / time-in-frame dwell from live snapshot."
+          value={online && liveKpis.dwell !== "—" ? liveKpis.dwell : null}
+          sourcePath="/api/v1/live · avg_dwell_seconds"
+          badge={sectionBadges.today}
+        />
+        <LiveSegment
+          title="Engaged ratio"
+          brief="Head-facing / pose proxy — null when enrichment off (fast mode)."
+          value={liveKpis.engagedRatio}
+          sourcePath="/api/v1/live · engagement.engaged_ratio"
+          badge={sectionBadges.engagement}
+        />
       </div>
 
-      {/* Period KPIs */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4" aria-busy={loading}>
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => (
-              <Panel key={i} className="h-full">
-                <Skeleton className="h-[11px] w-16" />
-                <Skeleton className="mt-3 h-[26px] w-24" />
-                <Skeleton className="mt-3 h-[20px] w-28" />
-              </Panel>
-            ))
-          : kpis.map((k, i) => (
-              <motion.div
-                key={k.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25, delay: i * 0.04, ease: "easeOut" }}
-              >
-                <Panel className="h-full">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-start gap-2">
-                      {(() => {
-                        const meta = KPI_ICONS[k.id]
-                        const Icon = meta ? meta.icon : TrendingUp
-                        return (
-                          <span
-                            className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
-                            style={{ background: "var(--app-accent-soft)", color: meta ? meta.tint : "var(--app-accent)" }}
-                          >
-                            <Icon size={14} strokeWidth={2.1} />
-                          </span>
-                        )
-                      })()}
-                      <MetricLabel label={k.label} hint={k.hint} />
-                    </div>
-                    {k.peer && <PeerDot peer={k.peer} />}
-                  </div>
-                  <p className="mt-2.5 font-num cosmic-text-2xl font-bold leading-none tracking-[-0.01em] text-[var(--app-text)]">
-                    <MagicNumber value={k.value} />
-                  </p>
-                  <div className="mt-2.5">
-                    <DeltaPill delta={k.delta} tone={k.deltaTone} note={k.deltaNote} />
-                  </div>
-                </Panel>
-              </motion.div>
-            ))}
-      </div>
-
-      {/* Where — floor + occupancy */}
-      <div className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
-        <section
-          className="app-panel overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-card)]"
-          style={{ boxShadow: "var(--app-shadow)" }}
-        >
-          <header className="flex items-center justify-between gap-3 px-6 pt-5 sm:px-7">
-            <h3 className="card-title text-[var(--app-text)]">Floor zones</h3>
-            <button
-              type="button"
-              onClick={() => onNavigate?.("zones")}
-              className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)] hover:underline"
-            >
-              Open map →
-            </button>
-          </header>
-          <div className="relative mt-4">
-            <img
-              src="/images/in-store-zones.jpg"
-              alt={`${TENANT.store} floor zones`}
-              loading="lazy"
-              className="aspect-[16/9] w-full object-cover"
-            />
-            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[var(--app-card)] via-transparent to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 grid grid-cols-2 gap-2 p-4 sm:grid-cols-4">
-              {TOP_ZONES.map((z) => (
-                <div
-                  key={z.code}
-                  className="rounded-lg border border-[var(--app-line)] bg-[var(--app-card)]/90 px-2.5 py-2 backdrop-blur-sm"
-                >
-                  <p className="truncate font-inter cosmic-text-2xs font-semibold text-[var(--app-text)]">{z.name}</p>
-                  <p className="mt-0.5 font-num cosmic-text-xs text-[var(--app-faint)]">
-                    {z.traffic}% entered · {z.dwell}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        <OccupancyGauge occupancy={occupancy} />
-      </div>
-
-      {/* Traffic + funnel */}
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel
           title="Hourly traffic"
-          action={<Label>{period}</Label>}
-          verified={online ? "EdgeSight rollups" : "Camera rollups · demo"}
+          sub="From analytics summary rollups — empty until EdgeSight has history."
+          action={<DataBadge badge={sectionBadges.today} />}
         >
-          <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} />
+          {trafficHours.length > 0 ? (
+            <AreaChart data={trafficHours} peaks={[]} />
+          ) : (
+            <EmptyBlock
+              title="No hourly rollups yet"
+              brief="Appears after telemetry_rollups accumulate. Value stays — until then."
+            />
+          )}
         </Panel>
-        <Panel title="Pass → stop → enter" action={<Label>{period}</Label>}>
-          <FunnelBars stages={funnel} />
-        </Panel>
-      </div>
-
-      {/* Proof — A/B + stores */}
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
-        <Panel title="Window performance" action={<Label>{AFT_CAMPAIGN.window}</Label>} verified="14-day A/B">
-          <div className="flex flex-col gap-4">
-            <div className="mb-0.5 flex items-baseline justify-between gap-3">
-              <span className="font-inter cosmic-text-xs text-[var(--app-text)]">{AFT_CAMPAIGN.metricLabel}</span>
-              <span className="font-inter cosmic-text-xs font-semibold font-num text-[var(--app-text)]">
-                {AFT_CAMPAIGN.before} <span className="text-[var(--app-faint)]">→</span> {AFT_CAMPAIGN.after}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--app-grid)" }}>
-                <div className="h-full rounded-full" style={{ width: "72%", background: "var(--app-faint)" }} />
-              </div>
-              <span className="w-12 shrink-0 text-right font-num cosmic-text-xs text-[var(--app-faint)]">{AFT_CAMPAIGN.before}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-full overflow-hidden rounded-full" style={{ background: "var(--app-grid)" }}>
-                <div className="h-full rounded-full" style={{ width: "88%", background: "var(--app-gold)" }} />
-              </div>
-              <span className="w-12 shrink-0 text-right font-num cosmic-text-xs text-[var(--app-text)]">{AFT_CAMPAIGN.after}</span>
-            </div>
-            <p className="font-inter cosmic-text-lg font-bold font-num" style={{ color: "var(--app-pos)" }}>
-              {AFT_CAMPAIGN.uplift}
-            </p>
-          </div>
-        </Panel>
-
-        <Panel title="Stores" action={<Label>{STORES.length}</Label>}>
-          <div className="flex flex-col gap-3">
-            {STORES.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--app-line)] p-3.5">
+        <Panel
+          title="Flow clarity"
+          sub="How detections become dashboard numbers."
+          action={<Layers size={14} className="text-[var(--app-faint)]" />}
+        >
+          <ol className="flex flex-col gap-3">
+            {[
+              {
+                icon: DoorOpen,
+                step: "Detect + track",
+                detail: "YOLO person boxes → ByteTrack IDs on the MJPEG stream.",
+              },
+              {
+                icon: UserRound,
+                step: "People present",
+                detail: "people_now = active customer tracks (same count as HUD).",
+              },
+              {
+                icon: DoorOpen,
+                step: "Entries in",
+                detail: "Tripwire line crossings → total_visitors (session IN).",
+              },
+              {
+                icon: LogOut,
+                step: "Exits",
+                detail: "Opposite tripwire direction → total_exits (session OUT).",
+              },
+              {
+                icon: Timer,
+                step: "Queues / zones",
+                detail: "Polygon membership + dwell → queue_length, zone occupancy.",
+              },
+            ].map((row) => (
+              <li key={row.step} className="flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--app-accent-soft)] text-[var(--app-accent)]">
+                  <row.icon size={14} />
+                </span>
                 <div className="min-w-0">
-                  <p className="truncate font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{s.name}</p>
-                  <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-                    {s.footfallToday.toLocaleString("en-IN")} passes · stop {s.stopRate}
-                  </p>
+                  <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{row.step}</p>
+                  <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">{row.detail}</p>
                 </div>
-                <Sparkline data={s.spark} tone={s.trend === "up" ? "pos" : s.trend === "down" ? "neg" : "gold"} />
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
         </Panel>
       </div>
 
-      {/* Decisions */}
-      <Panel title="This week · decisions" action={<Label>{BRIEF.week}</Label>}>
-        <ol className="grid gap-3 sm:grid-cols-3">
-          {BRIEF.actions.map((a, i) => (
-            <li key={a.title} className="flex items-start gap-3 rounded-xl border border-[var(--app-line)] p-4">
-              <span
-                className="grid h-6 w-6 shrink-0 place-items-center rounded-full font-inter cosmic-text-xs font-bold"
-                style={{ background: "var(--app-gold-soft)", color: "var(--app-gold)" }}
-              >
-                {i + 1}
-              </span>
-              <div className="min-w-0">
-                <p className="font-inter cosmic-text-sm font-medium leading-snug text-[var(--app-text)]">{a.title}</p>
-                <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">{a.tag} · {a.priority}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Panel>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <LiveSegment
+          title="Floor zones"
+          brief="Occupancy per calibrated dwell polygon."
+          value={online ? "—" : null}
+          sourcePath="/api/v1/live/snapshot · zones[]"
+          badge={sectionBadges.floor_zones}
+          empty
+        />
+        <LiveSegment
+          title="Shelf / display"
+          brief="Open-vocab category interest — never SKUs or revenue."
+          value={
+            online && (status?.products?.categories?.length ?? 0) > 0
+              ? `${status?.products?.categories?.length} cats`
+              : null
+          }
+          sourcePath="/api/v1/live · products_top · analytics/products"
+          badge={sectionBadges.shelf}
+        />
+        <LiveSegment
+          title="Staff present"
+          brief="Geometry staff-zone tag — no facial identity."
+          value={online ? displayMetric(live?.staff_now ?? null) : null}
+          sourcePath="/api/v1/live · staff_now"
+          badge={sectionBadges.staffing}
+        />
+        <LiveSegment
+          title="Demographics"
+          brief="k-anon age/gender only when publishable; never invent cohorts."
+          value={null}
+          sourcePath="/api/v1/analytics/demographics"
+          badge={sectionBadges.demographics}
+          empty
+        />
+      </div>
 
       <Panel pad={false}>
         <div className="grid grid-cols-3 gap-1 p-2 sm:grid-cols-6">
@@ -355,31 +231,28 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       </Panel>
 
       <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-        {TENANT.name} · {TENANT.store} · {sourceChip.title}
+        Store {storeLabel}
+        {" · "}
+        {sourceChip.title}
         {" · "}
         <button
           type="button"
           className="text-[var(--app-accent)] hover:underline"
-          onClick={() => onNavigate?.("pipeline")}
+          onClick={() => onNavigate?.("liveOps")}
         >
-          Models & EdgeSight →
+          Live hub →
         </button>
       </p>
     </div>
   )
 }
 
-function MagicNumber({ value }: { value: string }) {
-  const isNumeric = /^-?[\d][\d,]*\.?\d*%?$/.test(value.trim())
-  if (!isNumeric) return <>{value}</>
-  const hasPct = value.includes("%")
-  const num = parseFloat(value.replace(/[^0-9.]/g, ""))
-  if (!Number.isFinite(num)) return <>{value}</>
-  const decimals = hasPct ? 1 : value.includes(".") ? 1 : 0
+function EmptyBlock({ title, brief }: { title: string; brief: string }) {
   return (
-    <>
-      <CountUp to={num} decimals={decimals} />
-      {hasPct ? "%" : ""}
-    </>
+    <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 px-4 text-center">
+      <p className="font-num cosmic-text-2xl font-bold text-[var(--app-faint)]">—</p>
+      <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{title}</p>
+      <p className="max-w-sm font-inter cosmic-text-xs text-[var(--app-faint)]">{brief}</p>
+    </div>
   )
 }

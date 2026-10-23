@@ -51,7 +51,7 @@ const MATURITY_TONE: Record<string, string> = {
   Blocked: "#FF3B30",
 }
 
-export function Pipeline() {
+export function ModelsStatusPanel({ embedded = false }: { embedded?: boolean }) {
   const { status, loading, refresh, occupancy, liveKpis, sourceChip } = useEdgeSight()
   const online = Boolean(status?.online)
   const device = status?.device
@@ -60,24 +60,39 @@ export function Pipeline() {
 
   return (
     <div className="flex flex-col gap-5">
-      <ScreenHeader
-        icon={Layers}
-        eyebrow="Models pack · EdgeSight"
-        title="Models & EdgeSight"
-        sub="Live CV via portal proxy when Docker is up · full planned scope matrix below · pack weights segregated · Calibration / ops on Live ops."
-      >
-        <Chip tone={sourceChip.tone} title={sourceChip.title}>
-          {sourceChip.label}
-        </Chip>
-        <button
-          type="button"
-          onClick={refresh}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-line)] px-3 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-sub)] hover:text-[var(--app-text)]"
+      {!embedded && (
+        <ScreenHeader
+          icon={Layers}
+          eyebrow="Live hub · Models"
+          title="Models status"
+          sub="Pack maturity + live EdgeSight node — opened from Live hub (not a second sidebar destination)."
         >
-          <RefreshCw size={12} className={loading ? "animate-spin" : undefined} />
-          Refresh
-        </button>
-      </ScreenHeader>
+          <Chip tone={sourceChip.tone} title={sourceChip.title}>
+            {sourceChip.label}
+          </Chip>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-line)] px-3 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-sub)] hover:text-[var(--app-text)]"
+          >
+            <RefreshCw size={12} className={loading ? "animate-spin" : undefined} />
+            Refresh
+          </button>
+        </ScreenHeader>
+      )}
+      {embedded && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
+          <button
+            type="button"
+            onClick={refresh}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--app-line)] px-3 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-sub)]"
+          >
+            <RefreshCw size={12} className={loading ? "animate-spin" : undefined} />
+            Refresh
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Panel>
@@ -403,4 +418,9 @@ function ExtLink({ href, children }: { href: string; children: React.ReactNode }
       <ExternalLink size={11} />
     </a>
   )
+}
+
+/** @deprecated Prefer Live hub → Models tab. */
+export function Pipeline() {
+  return <ModelsStatusPanel />
 }

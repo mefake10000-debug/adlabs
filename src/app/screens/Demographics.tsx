@@ -7,9 +7,9 @@ import { DataBadge, NoDataState } from "../../components/DataBadge"
 
 export function Demographics() {
   const { demographicsLive, sourceChip, online, sectionBadges } = useEdgeSight()
-  // Online + null demographics → empty (NO-DATA). Offline → demo fixtures.
-  const g = online ? demographicsLive : DEMOGRAPHICS
-  const noLiveDemo = online && !demographicsLive
+  // Never seed demo demographics — null stays empty (NO-DATA / EMPTY).
+  const g = demographicsLive
+  const noLiveDemo = !demographicsLive
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader

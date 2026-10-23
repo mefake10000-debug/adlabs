@@ -30,21 +30,28 @@ import {
   SECTION_CADENCE_MS,
 } from "../lib/data-freshness"
 import {
-  ALERTS,
   BUSINESS_KPIS,
   DEMOGRAPHICS,
   OCCUPANCY,
   STAFF_INTEL,
-  TRAFFIC_HOURS,
   type OwnerAlert,
 } from "../data/dashboard"
 
 /** Heavy aggregate poll (summary, demographics, products, heatmap check…). Matrix: Today/heatmap 10s. */
 const POLL_MS = 10_000
-/** Fast live/state poll — tripwires, zones, queues, staffing, engagement. */
-const LIVE_POLL_MS = 2_000
+/** Fast live/state poll — In / Present / Out hero · ≤1s per UX contract. */
+const LIVE_POLL_MS = 1_000
 // Keep matrix cadences referenced so drift is obvious in review.
 void SECTION_CADENCE_MS
+
+export type HeroFlow = {
+  entriesIn: number | null
+  peoplePresent: number | null
+  exitsOut: number | null
+  entriesPath: string
+  presentPath: string
+  exitsPath: string
+}
 
 export type LiveAlert = OwnerAlert & { live: boolean }
 
@@ -67,7 +74,7 @@ export type EdgeSightContextValue = {
   /** Null when live people_now is null — never invent zero. */
   peopleNow: number | null
   queueLength: number | null
-  trafficHours: typeof TRAFFIC_HOURS
+  trafficHours: { h: string; v: number }[]
   demographicsLive: typeof DEMOGRAPHICS | null
   sourceChip: { tone: "live" | "neutral"; label: string; title: string }
   liveKpis: {
@@ -77,6 +84,8 @@ export type EdgeSightContextValue = {
     engagedRatio: string | null
     facingRatio: string | null
   }
+  /** Realtime In / Present / Out — numeric nulls, never invented. */
+  heroFlow: HeroFlow
   /** Calibrated polygons from /api/v1/config/cameras — EdgeSight truth. */
   calibratedZones: CalibratedZoneRow[]
   tripwireCount: number
@@ -87,7 +96,7 @@ export type EdgeSightContextValue = {
   events: EdgeSightEvent[]
   history: EdgeSightHistoryRow[]
   historyOccupancy: { h: string; v: number }[]
-  /** Demo alerts + live queue alert when EdgeSight flags congestion. */
+  /** Live catalog / queue alerts only — never demo fixtures. */
   alertsLive: LiveAlert[]
   staffLive: typeof STAFF_INTEL
   businessLive: typeof BUSINESS_KPIS
@@ -130,37 +139,45 @@ function buildValue(
     liveState?.cameras[0] ??
     null
 
-  // Null-safe occupancy: when online, never fall back to demo OCCUPANCY.now
+  // Null-safe: never invent demo numbers — null / — until EdgeSight answers.
   const peopleNow: number | null = online
     ? (live?.people_now ?? live?.net_occupancy ?? primaryCameraState?.counts.people_now ?? null)
-    : OCCUPANCY.now
+    : null
   const queueLength: number | null = online
     ? (primaryCameraState?.queues?.[0]?.queue_length ?? live?.queue_length ?? null)
-    : OCCUPANCY.queue
+    : null
 
-  const occupancy: typeof OCCUPANCY =
-    online
-      ? {
-          now: peopleNow ?? 0, // gauge needs a number; UI should prefer peopleNow/displayMetric
-          capacity: OCCUPANCY.capacity,
-          level:
-            peopleNow == null
-              ? 0
-              : Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
-          queue: queueLength ?? 0,
-          avgWait:
-            live?.avg_queue_wait_seconds != null
-              ? formatWait(live.avg_queue_wait_seconds)
-              : primaryCameraState?.queues?.[0]?.avg_wait_seconds != null
-                ? formatWait(primaryCameraState.queues[0].avg_wait_seconds)
-                : "—",
-          peakWindow: formatPeakHour(summary?.peak_period?.hour) || OCCUPANCY.peakWindow,
-          trend: OCCUPANCY.trend,
-        }
-      : OCCUPANCY
+  const emptyOccupancy: typeof OCCUPANCY = {
+    now: 0,
+    capacity: OCCUPANCY.capacity,
+    level: 0,
+    queue: 0,
+    avgWait: "—",
+    peakWindow: "—",
+    trend: [],
+  }
 
-  const fromApi = online ? hourlyToChart(summary?.hourly_breakdown) : []
-  const trafficHours = fromApi.length > 0 ? fromApi : TRAFFIC_HOURS
+  const occupancy: typeof OCCUPANCY = online
+    ? {
+        now: peopleNow ?? 0,
+        capacity: OCCUPANCY.capacity,
+        level:
+          peopleNow == null
+            ? 0
+            : Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
+        queue: queueLength ?? 0,
+        avgWait:
+          live?.avg_queue_wait_seconds != null
+            ? formatWait(live.avg_queue_wait_seconds)
+            : primaryCameraState?.queues?.[0]?.avg_wait_seconds != null
+              ? formatWait(primaryCameraState.queues[0].avg_wait_seconds)
+              : "—",
+        peakWindow: formatPeakHour(summary?.peak_period?.hour) || "—",
+        trend: [],
+      }
+    : emptyOccupancy
+
+  const trafficHours = online ? hourlyToChart(summary?.hourly_breakdown) : []
 
   let demographicsLive: typeof DEMOGRAPHICS | null = null
   const demo = status?.demographics?.demographics
@@ -210,30 +227,27 @@ function buildValue(
       }
     : {
         tone: "neutral" as const,
-        label: "Demo",
+        label: "EMPTY",
         title: status?.error
-          ? `Showcase fixtures · ${status.error}`
-          : "Simulated showcase · Organic Clothing Co. · Bandra (start EdgeSight on :8000 for live)",
+          ? `No live data · ${status.error}`
+          : "EdgeSight offline · start Docker on :8000 — UI stays — / 0 / nil until then",
       }
 
   const snapEng = primaryCameraState?.engagement ?? live?.engagement
+  const entriesNum: number | null = online
+    ? (live?.total_visitors ?? summary?.total_visitors ?? primaryCameraState?.counts.tripwire_in_cumulative ?? null)
+    : null
+  const exitsNum: number | null = online
+    ? (live?.total_exits ?? summary?.total_exits ?? primaryCameraState?.counts.tripwire_out_cumulative ?? null)
+    : null
+
   const liveKpis = {
-    entries: live
-      ? live.total_visitors.toLocaleString("en-IN")
-      : summary
-        ? summary.total_visitors.toLocaleString("en-IN")
-        : "—",
-    exits: live
-      ? live.total_exits.toLocaleString("en-IN")
-      : summary
-        ? summary.total_exits.toLocaleString("en-IN")
-        : "—",
+    entries: entriesNum != null ? entriesNum.toLocaleString("en-IN") : "—",
+    exits: exitsNum != null ? exitsNum.toLocaleString("en-IN") : "—",
     dwell:
       live && live.avg_dwell_seconds != null
         ? formatDwell(live.avg_dwell_seconds)
-        : online
-          ? "—"
-          : "6m 12s",
+        : "—",
     engagedRatio: eng
       ? `${Math.round(eng.avg_engaged_ratio * 100)}%`
       : snapEng?.engaged_ratio != null
@@ -244,6 +258,15 @@ function buildValue(
       : snapEng?.facing_ratio != null
         ? `${Math.round(snapEng.facing_ratio * 100)}%`
         : null,
+  }
+
+  const heroFlow: HeroFlow = {
+    entriesIn: entriesNum,
+    peoplePresent: peopleNow,
+    exitsOut: exitsNum,
+    entriesPath: "/api/v1/live · total_visitors  (per_camera[].in_count)",
+    presentPath: "/api/v1/live · people_now  (active tracks)",
+    exitsPath: "/api/v1/live · total_exits  (per_camera[].out_count)",
   }
 
   const calibratedZones: CalibratedZoneRow[] = flattenCalibratedZones(configs).map((row) => ({
@@ -260,22 +283,31 @@ function buildValue(
   const staffVisible = primaryCameraState?.counts.staff_visible ?? live?.staff_now ?? null
   const staffTagged = primaryCameraState?.counts.staff_tagged ?? null
 
+  const emptyStaff: typeof STAFF_INTEL = {
+    ...STAFF_INTEL,
+    visitorsNow: 0,
+    staffShare: "—",
+    onFloor: 0,
+    method: "No live staff counts — calibrate a staff polygon or wait for EdgeSight",
+    zones: [],
+    doNext: ["Open Live hub → Set up zones · draw staff polygon", "Start EdgeSight Docker if offline"],
+  }
+
   const staffLive: typeof STAFF_INTEL = online
     ? {
-        ...STAFF_INTEL,
-        visitorsNow: peopleNow ?? STAFF_INTEL.visitorsNow,
+        ...emptyStaff,
+        visitorsNow: peopleNow ?? 0,
         staffShare:
           staffVisible != null && peopleNow != null && peopleNow > 0
             ? `${Math.round((staffVisible / (peopleNow + staffVisible)) * 100)}%`
             : "—",
-        // Keep numeric field for layout; Staff screen renders displayMetric(staffVisible) for honesty.
         onFloor: staffVisible ?? 0,
         method:
           staffVisible != null || staffTagged != null
             ? `staff_visible ${displayMetric(staffVisible)} · tagged ${displayMetric(staffTagged)} · sticky staff polygons`
             : staffZones.length > 0
               ? `Staff polygon calibrated (${staffZones.map((z) => z.name).join(", ")}) · counts null on live/state`
-              : "No staff zone in cameras.yaml — draw one in Calibration Studio",
+              : "No staff zone in cameras.yaml — draw one in Set up zones",
         zones:
           staffZones.length > 0
             ? staffZones.map((z) => ({
@@ -285,13 +317,13 @@ function buildValue(
                 present: staffTagged != null ? staffTagged > 0 : staffVisible != null ? staffVisible > 0 : false,
                 note: `${z.cameraName} · polygon ${z.points} pts · sticky staff tag after min dwell`,
               }))
-            : STAFF_INTEL.zones.map((z) => ({ ...z, note: `${z.note} · demo (no staff zone live)` })),
+            : [],
         doNext:
           live?.queue_alert_active
-            ? ["Open second till — EdgeSight queue alert active", ...STAFF_INTEL.doNext.slice(1)]
-            : STAFF_INTEL.doNext,
+            ? ["Open second till — EdgeSight queue alert active"]
+            : emptyStaff.doNext,
       }
-    : STAFF_INTEL
+    : emptyStaff
 
   const queueAlert: LiveAlert | null =
     online && live?.queue_alert_active
@@ -310,16 +342,18 @@ function buildValue(
         }
       : null
 
+  // Online: queue alert only. Offline: []. Never seed demo ALERTS.
   const alertsLive: LiveAlert[] = online
-    ? [
-        ...(queueAlert ? [queueAlert] : []),
-        ...ALERTS.filter((a) => a.id !== "0").map((a) => ({
-          ...a,
-          live: false,
-          source: a.source.includes("demo") ? a.source : `${a.source} · demo fixture`,
-        })),
-      ]
-    : ALERTS.map((a) => ({ ...a, live: false }))
+    ? [...(queueAlert ? [queueAlert] : [])]
+    : []
+
+  const emptyBusiness: typeof BUSINESS_KPIS = BUSINESS_KPIS.map((k) => ({
+    ...k,
+    value: "—",
+    delta: "—",
+    tone: "flat" as const,
+    note: "EMPTY · waiting for /api/v1/live",
+  }))
 
   const businessLive: typeof BUSINESS_KPIS = online && live
     ? [
@@ -328,7 +362,7 @@ function buildValue(
           value: liveKpis.entries,
           delta: `exits ${liveKpis.exits}`,
           tone: "pos",
-          note: "Tripwire IN · EdgeSight live",
+          note: "Tripwire IN · /api/v1/live.total_visitors",
           iconHint: "yield",
         },
         {
@@ -336,7 +370,7 @@ function buildValue(
           value: displayMetric(peopleNow),
           delta: peopleNow != null ? `${occupancy.level}% of capacity` : "NO-DATA",
           tone: "flat",
-          note: "Active tracks (sum of per-cam) — null stays —",
+          note: "Active tracks · /api/v1/live.people_now",
           iconHint: "basket",
         },
         {
@@ -360,13 +394,13 @@ function buildValue(
           value: occupancy.peakWindow,
           delta: summary?.peak_period
             ? `${summary.peak_period.visitors} entries`
-            : "rollup",
-          tone: "pos",
+            : "—",
+          tone: "flat",
           note: "Analytics summary peak_period",
           iconHint: "currency",
         },
       ]
-    : BUSINESS_KPIS
+    : emptyBusiness
 
   const sectionBadges = evaluateAllSectionBadges({
     online,
@@ -395,12 +429,13 @@ function buildValue(
     online,
     refresh,
     occupancy,
-    peopleNow: online ? peopleNow : OCCUPANCY.now,
-    queueLength: online ? queueLength : OCCUPANCY.queue,
+    peopleNow,
+    queueLength,
     trafficHours,
-    demographicsLive: online ? demographicsLive : DEMOGRAPHICS,
+    demographicsLive: online ? demographicsLive : null,
     sourceChip,
     liveKpis,
+    heroFlow,
     calibratedZones,
     tripwireCount: countTripwires(configs),
     cameraConfigs: configs,

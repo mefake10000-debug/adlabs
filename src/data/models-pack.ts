@@ -79,9 +79,9 @@ export const MODELS_EXISTING: ModelCard[] = [
     id: "age-gender",
     name: "Age / gender ViT",
     role: "Demographics",
-    unlocks: "k-anonymous age & gender cohorts",
-    status: "partial",
-    statusLabel: "Gated · quality mode",
+    unlocks: "k-anonymous cohorts only — never raw LIVE age/gender",
+    status: "future",
+    statusLabel: "GATED · ENABLE_DEMOGRAPHICS=0 default",
   },
   {
     id: "head-pose",
@@ -102,6 +102,54 @@ export const MODELS_EXISTING: ModelCard[] = [
 ]
 
 export const MODELS_NEXT: ModelCard[] = [
+  {
+    id: "rtmpose",
+    name: "RTMPose-t/s/m ONNX (rtmlib)",
+    role: "Pose fall-candidate",
+    unlocks: "SAFETY_FALL_CANDIDATE_POSE → PARTIAL when weights + slow-tier wire",
+    status: "next",
+    statusLabel: "PACKED stub · phase-2 dry-run",
+  },
+  {
+    id: "shelf-gap-geometry",
+    name: "Shelf gap / OSA geometry",
+    role: "Planogram gaps",
+    unlocks: "Gap candidates from existing boxes — zero new weights",
+    status: "partial",
+    statusLabel: "PARTIAL stub · no SKU-110K",
+  },
+  {
+    id: "mivolo-v2",
+    name: "MiVOLO v2 age/gender",
+    role: "Demographics (body-only OK)",
+    unlocks: "Apache-2.0 — DPIA + k≥10 only; UI never shows raw LIVE",
+    status: "future",
+    statusLabel: "GATED · ENABLE_DEMOGRAPHICS",
+  },
+  {
+    id: "moondream",
+    name: "Moondream lean VLM",
+    role: "Nightly shelf-photo QA",
+    unlocks: "Not every-frame; on-prem Apache path",
+    status: "future",
+    statusLabel: "FUTURE · nightly only",
+  },
+  {
+    id: "p2pnet",
+    name: "P2PNet crowd density",
+    role: "Crush scenes",
+    unlocks: "Academic-research license — skip commercial; prefer max_det",
+    status: "future",
+    statusLabel: "SKIP commercial",
+  },
+  {
+    id: "locateanything-3b",
+    name: "LocateAnything-3B",
+    role: "Open-vocab grounding",
+    unlocks: "NVIDIA non-commercial — do not download",
+    status: "future",
+    statusLabel: "FUTURE · no download",
+  },
   {
     id: "window-stop",
     name: "Window stop velocity",

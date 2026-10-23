@@ -8,6 +8,7 @@ import {
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { DataBadge } from "../../components/DataBadge"
+import { LiveSegment } from "../../components/LiveSegment"
 import { DUAL_DEPLOYMENT, FULL_SCOPE_MATRIX } from "../../data/models-pack"
 import {
   EDGE_SIGHT_OPS_EMBED,
@@ -16,20 +17,23 @@ import {
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
 import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
+import { ModelsStatusPanel } from "./Pipeline"
+import { displayMetric } from "../../lib/data-freshness"
 
 const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
 const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
 const NEXT_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Integrate next" || r.maturity === "Partial").length
 
-type PanelId = "video" | "calib" | "ops"
+type PanelId = "video" | "calib" | "ops" | "models"
 
 function readPanelFromUrl(): PanelId {
   if (typeof window === "undefined") return "video"
   const q = new URLSearchParams(window.location.search).get("panel")
-  if (q === "calib" || q === "ops" || q === "video") return q
+  if (q === "calib" || q === "ops" || q === "video" || q === "models") return q
   const path = window.location.pathname
   if (path.endsWith("/calibrate")) return "calib"
   if (path.endsWith("/ops")) return "ops"
+  if (path.includes("pipeline") || path.includes("models")) return "models"
   return "video"
 }
 
@@ -44,6 +48,12 @@ function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: str
     return {
       here: "Advanced — edge ops tools",
       next: "Day-to-day watching stays on Live",
+    }
+  }
+  if (tab === "models") {
+    return {
+      here: "Models status — pack maturity + live node",
+      next: "Return to Live to watch In / Present / Out",
     }
   }
   if (!live) {
@@ -93,7 +103,7 @@ function OpsFrame({
   )
 }
 
-export function LiveOps() {
+export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
   const edge = useEdgeSight()
   const live = edge.online
   const detail = live
@@ -126,10 +136,10 @@ export function LiveOps() {
   }, [cams, edge.status?.live?.camera_id])
 
   useEffect(() => {
-    const initial = readPanelFromUrl()
+    const initial = initialPanel ?? readPanelFromUrl()
     setTab(initial)
     if (initial === "ops") setAdvancedOpen(true)
-  }, [])
+  }, [initialPanel])
 
   const selectTab = (id: PanelId) => {
     setTab(id)
@@ -145,9 +155,9 @@ export function LiveOps() {
     <div className="flex flex-col gap-6">
       <ScreenHeader
         icon={Radio}
-        eyebrow="Live portal"
-        title="Live"
-        sub="Watch the floor first. Set up zones when counts need polygons. Advanced tools stay nested — not a peer tab."
+        eyebrow="Live hub"
+        title="Live hub"
+        sub="One destination: Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
       >
         <DataBadge badge={badges.connectivity} />
         <DataBadge badge={badges.camera_wall} />
@@ -165,6 +175,64 @@ export function LiveOps() {
           <RefreshCw size={12} /> Refresh
         </button>
       </ScreenHeader>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <LiveSegment
+          title="Entries in"
+          brief="Session tripwire IN — same path video detections use."
+          value={edge.heroFlow.entriesIn}
+          sourcePath={edge.heroFlow.entriesPath}
+          badge={badges.entrance_tripwires}
+          empty={!live || edge.heroFlow.entriesIn == null}
+        />
+        <LiveSegment
+          title="People present"
+          brief="Active customer tracks — matches YOLO HUD count."
+          value={edge.heroFlow.peoplePresent}
+          sourcePath={edge.heroFlow.presentPath}
+          badge={badges.today}
+          empty={!live || edge.heroFlow.peoplePresent == null}
+        />
+        <LiveSegment
+          title="Exits"
+          brief="Session tripwire OUT."
+          value={edge.heroFlow.exitsOut}
+          sourcePath={edge.heroFlow.exitsPath}
+          badge={badges.entrance_tripwires}
+          empty={!live || edge.heroFlow.exitsOut == null}
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <LiveSegment
+          title="Queue"
+          brief="People in queue polygons · alert when congested."
+          value={live ? `${displayMetric(edge.queueLength)}${edge.status?.live?.queue_alert_active ? " · alert" : ""}` : null}
+          sourcePath="/api/v1/live · queue_length"
+          badge={badges.queues}
+        />
+        <LiveSegment
+          title="Infer FPS"
+          brief="Detect+track cadence (MODEL). FEED tracks display/decode."
+          value={edge.status?.live?.infer_fps ?? device?.pipeline_fps ?? null}
+          sourcePath="/api/v1/live · infer_fps"
+          badge={badges.camera_wall}
+        />
+        <LiveSegment
+          title="Cameras"
+          brief="Ordered from cameras.yaml / live.cameras."
+          value={live ? cams.length : null}
+          sourcePath={cams.length ? cams.join(", ") : "/api/v1/cameras"}
+          badge={badges.camera_wall}
+        />
+        <LiveSegment
+          title="Zones · tripwires"
+          brief="Calibrated polygons that drive In / Present / Out."
+          value={live ? `${edge.calibratedZones.length} · ${edge.tripwireCount} trip` : null}
+          sourcePath="/api/v1/config/cameras"
+          badge={badges.entrance_tripwires}
+        />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -188,37 +256,6 @@ export function LiveOps() {
           API docs
         </a>
       </motion.div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Panel>
-          <Label>Cameras (API)</Label>
-          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{cams.length || (live ? "—" : "0")}</p>
-          <p className="mt-1 truncate font-mono cosmic-text-2xs text-[var(--app-faint)]">
-            {cams.length ? cams.join(", ") : "Start Docker · then Set up zones"}
-          </p>
-        </Panel>
-        <Panel>
-          <Label>Pipeline FPS</Label>
-          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{device?.pipeline_fps ?? "—"}</p>
-          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">{device?.inference_engine ?? "EdgeSight device health"}</p>
-        </Panel>
-        <Panel>
-          <Label>Scope · Live / next / future</Label>
-          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
-            {LIVE_COUNT} · {NEXT_COUNT} · {FUTURE_COUNT}
-          </p>
-          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">From full-scope matrix · Models screen</p>
-        </Panel>
-        <Panel>
-          <Label>Zones on cameras</Label>
-          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
-            {edge.calibratedZones.length} · {edge.tripwireCount} trip
-          </p>
-          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            {needsZones ? "None yet — use Set up zones" : "From cameras.yaml / calibrate"}
-          </p>
-        </Panel>
-      </div>
 
       <IntelligenceParityPanel sectionBadges={badges} />
 
@@ -277,6 +314,21 @@ export function LiveOps() {
                 needed
               </span>
             ) : null}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => selectTab("models")}
+            className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-semibold transition-colors"
+            style={{
+              borderColor: tab === "models" ? "var(--app-accent)" : "var(--app-line)",
+              background: tab === "models" ? "var(--app-accent-soft)" : "transparent",
+              color: tab === "models" ? "var(--app-accent)" : "var(--app-sub)",
+            }}
+            aria-current={tab === "models" ? "page" : undefined}
+          >
+            <Layers size={14} />
+            Models status
           </button>
 
           <div className="ml-auto flex flex-col items-stretch gap-1 sm:items-end">
@@ -348,7 +400,7 @@ export function LiveOps() {
             <OfflineHint name="Zone editor" />
           )}
         </OpsFrame>
-      ) : (
+      ) : tab === "ops" ? (
         <div className="space-y-2">
           <div className="flex justify-end">
             <DataBadge badge={badges.legacy_ops} />
@@ -369,6 +421,8 @@ export function LiveOps() {
             )}
           </OpsFrame>
         </div>
+      ) : (
+        <ModelsStatusPanel embedded />
       )}
 
       <Panel
@@ -376,7 +430,7 @@ export function LiveOps() {
         sub="Friend-reviewed mefake/integration only — never push NuclearQuince or rajendrac3 main."
         action={
           <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)]">
-            <Layers size={12} /> Sidebar → Live
+            <Layers size={12} /> Sidebar → Live hub
           </span>
         }
       >
@@ -389,9 +443,10 @@ docker compose up -d
 
 # Portal (only URL you need):
 #   http://localhost:3000/dashboard
-#   http://localhost:3000/dashboard/live          ← Live (default)
-#   http://localhost:3000/dashboard/live?panel=calib  ← Set up zones
-#   http://localhost:3000/dashboard/live?panel=ops    ← Advanced · Ops tools
+#   http://localhost:3000/dashboard/live               ← Live hub (default)
+#   http://localhost:3000/dashboard/live?panel=calib   ← Set up zones
+#   http://localhost:3000/dashboard/live?panel=ops     ← Advanced · Ops tools
+#   http://localhost:3000/dashboard/live?panel=models  ← Models status
 # Backends (Docker only — proxied into the portal):
 #   Zone editor  → /dashboard/live/calibrate  (:8000)
 #   Ops tools    → /dashboard/live/ops        (:8501)`}

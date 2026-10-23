@@ -37,7 +37,6 @@ import { Patterns } from "./screens/Patterns"
 import { Forecasts } from "./screens/Forecasts"
 import { Staff } from "./screens/Staff"
 import { Safety } from "./screens/Safety"
-import { Pipeline } from "./screens/Pipeline"
 import { LiveOps } from "./screens/LiveOps"
 import { PresentMode } from "./PresentMode"
 import { VoiceAssistant } from "./VoiceAssistant"
@@ -292,7 +291,7 @@ function DashboardShell({ initialScreen = "overview" }: { initialScreen?: Screen
       case "forecasts": return <Forecasts />
       case "staff": return <Staff />
       case "safety": return <Safety />
-      case "pipeline": return <Pipeline />
+      case "pipeline": return <LiveOps initialPanel="models" />
       case "liveOps": return <LiveOps />
       default: return <Overview />
     }

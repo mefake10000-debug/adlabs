@@ -86,13 +86,13 @@ export type SectionId =
 export const SECTION_CADENCE_MS: Record<SectionId, number | null> = {
   camera_wall: null, // continuous MJPEG
   today: 10_000,
-  entrance_tripwires: 2_000,
-  floor_zones: 2_000,
+  entrance_tripwires: 1_000,
+  floor_zones: 1_000,
   heatmap: 10_000,
-  queues: 2_000,
-  staffing: 2_000,
-  shelf: 2_000, // live products_top; analytics/products is 24h rollup
-  engagement: 2_000,
+  queues: 1_000,
+  staffing: 1_000,
+  shelf: 1_000, // live products_top; analytics/products is 24h rollup
+  engagement: 1_000,
   demographics: null, // windowed / on demand
   legacy_ops: null,
   connectivity: null,

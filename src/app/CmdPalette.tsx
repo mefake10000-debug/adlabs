@@ -11,7 +11,7 @@ const ALL: { id: string; label: string; group: string }[] = [
   { id: "zones", label: "Floor zones", group: "Live now" },
   { id: "queues", label: "Queues", group: "Live now" },
   { id: "alerts", label: "Alerts", group: "Live now" },
-  { id: "pipeline", label: "Models & EdgeSight", group: "Live now" },
+  { id: "pipeline", label: "Models status (Live hub tab)", group: "Live hub" },
   { id: "staff", label: "Staff", group: "Owner actions" },
   { id: "safety", label: "Safety · cautions", group: "Owner actions" },
   { id: "campaigns", label: "Window performance", group: "Owner actions" },

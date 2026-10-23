@@ -27,7 +27,7 @@ async function getJson<T>(base: string, path: string): Promise<T | null> {
 }
 
 /**
- * High-frequency proxy (2s): /api/v1/live + per-cam snapshots → honest live/state.
+ * High-frequency proxy (≤1s client poll): /api/v1/live + per-cam snapshots → honest live/state.
  * Full aggregates (demographics, products 24h, history) stay on /api/edgesight/status (10s).
  */
 export async function GET() {

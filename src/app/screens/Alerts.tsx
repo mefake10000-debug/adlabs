@@ -33,10 +33,10 @@ export function Alerts() {
         icon={ShieldAlert}
         eyebrow="Owner actions"
         title="Alerts"
-        sub={`${alertsLive.length} actionable · ${liveCount} from EdgeSight live · each row says what you can do.`}
+        sub={`${alertsLive.length} live · ${liveCount} from EdgeSight — empty until catalog/queue fires.`}
       >
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
-        {!online && <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>}
+        {!online && <Chip tone="neutral" title="No EdgeSight alerts until online">EMPTY</Chip>}
       </ScreenHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
