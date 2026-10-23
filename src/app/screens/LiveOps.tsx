@@ -15,6 +15,7 @@ import {
   EDGE_SIGHT_PORTAL_DOCS,
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
+import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
 
 const LIVE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Live").length
 const FUTURE_COUNT = FULL_SCOPE_MATRIX.filter((r) => r.maturity === "Future" || r.maturity === "Blocked").length
@@ -169,6 +170,8 @@ export function LiveOps() {
           <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">Homography / ReID calib = Future</p>
         </Panel>
       </div>
+
+      <IntelligenceParityPanel sectionBadges={badges} />
 
       <div className="flex flex-wrap gap-2">
         {(
