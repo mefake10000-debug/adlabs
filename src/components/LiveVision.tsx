@@ -151,7 +151,7 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
             {!compact && (
               <p className="sm:col-span-2 xl:col-span-1 font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
                 {live?.models?.note ??
-                  "Face boxes (if on) feed k-anon age/gender only — no face ID. Soft ReID / cross-cam IDs = Future. Tripwire & staff zones: Calibration tab."}
+                  "Face boxes (if on) feed k-anon age/gender only — no face ID. Soft ReID / cross-cam IDs = Future. Tripwire & staff zones: Set up zones."}
               </p>
             )}
           </div>

@@ -89,9 +89,9 @@ type NavItem = { id: Screen; label: string; icon: typeof LayoutDashboard; badge?
 
 const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
   {
-    label: "Calibration / Live ops",
+    label: "Live portal",
     items: [
-      { id: "liveOps", label: "EdgeSight live", icon: Radio, color: "#34C759" },
+      { id: "liveOps", label: "Live", icon: Radio, color: "#34C759" },
     ],
   },
   {
@@ -145,9 +145,9 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
 
 const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
   {
-    label: "Calibration / Live ops",
+    label: "Live portal",
     items: [
-      { id: "liveOps", label: "EdgeSight live", icon: Radio, color: "#34C759" },
+      { id: "liveOps", label: "Live", icon: Radio, color: "#34C759" },
     ],
   },
   {
@@ -202,7 +202,7 @@ const PAGE_TITLES: Record<Screen, string> = {
   staff: "Staff",
   safety: "Safety · cautions",
   pipeline: "Models & EdgeSight",
-  liveOps: "Calibration / Live ops",
+  liveOps: "Live",
 }
 
 export function DashboardPage({ initialScreen = "overview" }: { initialScreen?: Screen } = {}) {

@@ -147,10 +147,10 @@ export function Pipeline() {
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
-            <ExtLink href={EDGE_SIGHT_PORTAL_LIVE}>Calibration / Live ops</ExtLink>
-            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=video`}>Live video + KPIs</ExtLink>
-            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=calib`}>Calibration Studio</ExtLink>
-            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=ops`}>Ops UI</ExtLink>
+            <ExtLink href={EDGE_SIGHT_PORTAL_LIVE}>Live</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=video`}>Live · video + KPIs</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=calib`}>Set up zones</ExtLink>
+            <ExtLink href={`${EDGE_SIGHT_PORTAL_LIVE}?panel=ops`}>Advanced · Ops tools</ExtLink>
             <ExtLink href={EDGE_SIGHT_PORTAL_DOCS}>API docs</ExtLink>
           </div>
           {(status?.cameras?.length ?? 0) > 0 && (

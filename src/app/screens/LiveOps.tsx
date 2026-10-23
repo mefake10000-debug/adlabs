@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import {
-  Crosshair, Radio, RefreshCw, CheckCircle2, AlertCircle, Activity, Layers, Video,
+  ChevronDown, Crosshair, Radio, RefreshCw, CheckCircle2, AlertCircle, Layers, Video,
 } from "lucide-react"
 import { Panel, Chip, ScreenHeader, Label } from "../ui"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
@@ -31,6 +31,37 @@ function readPanelFromUrl(): PanelId {
   if (path.endsWith("/calibrate")) return "calib"
   if (path.endsWith("/ops")) return "ops"
   return "video"
+}
+
+function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: string; next: string } {
+  if (tab === "calib") {
+    return {
+      here: "Set up zones — draw tripwires and floor polygons",
+      next: "Return to Live to watch In / Present / Out",
+    }
+  }
+  if (tab === "ops") {
+    return {
+      here: "Advanced — edge ops tools",
+      next: "Day-to-day watching stays on Live",
+    }
+  }
+  if (!live) {
+    return {
+      here: "Live — waiting for EdgeSight",
+      next: "Start Docker, then refresh",
+    }
+  }
+  if (needsZones) {
+    return {
+      here: "Live — video + KPIs",
+      next: "Set up zones so In / Present / Out can count",
+    }
+  }
+  return {
+    here: "Live — video + KPIs",
+    next: "Watch the floor; open Set up zones only to edit polygons",
+  }
 }
 
 function OpsFrame({
@@ -70,10 +101,23 @@ export function LiveOps() {
     : edge.status?.error ?? "Start ADLabs-dev: docker compose up -d"
   const refresh = edge.refresh
   const [tab, setTab] = useState<PanelId>("video")
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const cams = edge.status?.cameras ?? []
   const device = edge.status?.device
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
   const badges = edge.sectionBadges
+
+  const needsZones = useMemo(() => {
+    const noPolygons = edge.calibratedZones.length === 0 && edge.tripwireCount === 0
+    const people = edge.peopleNow
+    const kpisFlat =
+      live &&
+      (people == null || people === 0) &&
+      edge.tripwireCount === 0
+    return noPolygons || kpisFlat
+  }, [edge.calibratedZones.length, edge.peopleNow, edge.tripwireCount, live])
+
+  const hint = flowHint(tab, needsZones, live)
 
   const streamCam = useMemo(() => {
     const fromLive = edge.status?.live?.camera_id
@@ -82,11 +126,14 @@ export function LiveOps() {
   }, [cams, edge.status?.live?.camera_id])
 
   useEffect(() => {
-    setTab(readPanelFromUrl())
+    const initial = readPanelFromUrl()
+    setTab(initial)
+    if (initial === "ops") setAdvancedOpen(true)
   }, [])
 
   const selectTab = (id: PanelId) => {
     setTab(id)
+    if (id === "ops") setAdvancedOpen(true)
     if (typeof window === "undefined") return
     const url = new URL(window.location.href)
     url.pathname = "/dashboard/live"
@@ -98,9 +145,9 @@ export function LiveOps() {
     <div className="flex flex-col gap-6">
       <ScreenHeader
         icon={Radio}
-        eyebrow="Calibration / Live ops"
-        title="EdgeSight live tools"
-        sub="All tools stay on localhost:3000 — Calibration Studio and Streamlit run as Docker backends, proxied into this dashboard."
+        eyebrow="Live portal"
+        title="Live"
+        sub="Watch the floor first. Set up zones when counts need polygons. Advanced tools stay nested — not a peer tab."
       >
         <DataBadge badge={badges.connectivity} />
         <DataBadge badge={badges.camera_wall} />
@@ -133,11 +180,9 @@ export function LiveOps() {
         <p className="min-w-0 flex-1 font-inter cosmic-text-xs text-[var(--app-sub)]">
           <span className="font-semibold text-[var(--app-text)]">{detail}</span>
           {" · "}
-          Portal routes: <code className="font-mono text-[var(--app-text)]">/dashboard/live/calibrate</code>
-          {" · "}
-          <code className="font-mono text-[var(--app-text)]">/dashboard/live/ops</code>
-          {" · "}
-          YOLO MJPEG + KPIs below. {DUAL_DEPLOYMENT.shared}
+          Stay on <code className="font-mono text-[var(--app-text)]">localhost:3000/dashboard/live</code>
+          {" — "}
+          zone editor and advanced ops are embedded here. {DUAL_DEPLOYMENT.shared}
         </p>
         <a href={EDGE_SIGHT_PORTAL_DOCS} className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
           API docs
@@ -149,7 +194,7 @@ export function LiveOps() {
           <Label>Cameras (API)</Label>
           <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">{cams.length || (live ? "—" : "0")}</p>
           <p className="mt-1 truncate font-mono cosmic-text-2xs text-[var(--app-faint)]">
-            {cams.length ? cams.join(", ") : "Start Docker · switch cams in Calibration Studio"}
+            {cams.length ? cams.join(", ") : "Start Docker · then Set up zones"}
           </p>
         </Panel>
         <Panel>
@@ -165,56 +210,142 @@ export function LiveOps() {
           <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">From full-scope matrix · Models screen</p>
         </Panel>
         <Panel>
-          <Label>Advanced draw tools</Label>
-          <p className="mt-2 font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">Tripwire · dwell · queue · staff</p>
-          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">Homography / ReID calib = Future</p>
+          <Label>Zones on cameras</Label>
+          <p className="mt-2 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
+            {edge.calibratedZones.length} · {edge.tripwireCount} trip
+          </p>
+          <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
+            {needsZones ? "None yet — use Set up zones" : "From cameras.yaml / calibrate"}
+          </p>
         </Panel>
       </div>
 
       <IntelligenceParityPanel sectionBadges={badges} />
 
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            { id: "video" as const, label: "Live video + KPIs", icon: Video },
-            { id: "calib" as const, label: "Calibration Studio", icon: Crosshair },
-            { id: "ops" as const, label: "Ops UI (Streamlit)", icon: Activity },
-          ]
-        ).map((t) => (
+      {/* Guided flow: Live primary · Set up zones secondary · Advanced nested tertiary */}
+      <div
+        className="rounded-2xl border border-[var(--app-line)] px-4 py-3 sm:px-5"
+        style={{ background: "var(--app-card)" }}
+      >
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
-            key={t.id}
             type="button"
-            onClick={() => selectTab(t.id)}
-            className="inline-flex items-center gap-2 rounded-full border px-3.5 py-2 font-inter cosmic-text-xs font-semibold transition-colors"
+            onClick={() => selectTab("video")}
+            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 font-inter cosmic-text-sm font-bold transition-colors"
             style={{
-              borderColor: tab === t.id ? "var(--app-accent)" : "var(--app-line)",
-              background: tab === t.id ? "var(--app-accent-soft)" : "var(--app-card)",
-              color: tab === t.id ? "var(--app-accent)" : "var(--app-sub)",
+              borderColor: tab === "video" ? "var(--app-accent)" : "var(--app-line)",
+              background: tab === "video" ? "var(--app-accent-soft)" : "transparent",
+              color: tab === "video" ? "var(--app-accent)" : "var(--app-sub)",
+              boxShadow: tab === "video" ? "0 0 0 1px var(--app-accent-soft)" : undefined,
             }}
+            aria-current={tab === "video" ? "page" : undefined}
           >
-            <t.icon size={14} />
-            {t.label}
+            <Video size={16} />
+            Live
           </button>
-        ))}
+
+          <button
+            type="button"
+            onClick={() => selectTab("calib")}
+            className="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-semibold transition-colors"
+            style={{
+              borderColor:
+                tab === "calib"
+                  ? "var(--app-accent)"
+                  : needsZones
+                    ? "var(--app-gold)"
+                    : "var(--app-line)",
+              background:
+                tab === "calib"
+                  ? "var(--app-accent-soft)"
+                  : needsZones
+                    ? "color-mix(in srgb, var(--app-gold) 12%, transparent)"
+                    : "transparent",
+              color:
+                tab === "calib"
+                  ? "var(--app-accent)"
+                  : needsZones
+                    ? "var(--app-gold)"
+                    : "var(--app-sub)",
+            }}
+            aria-current={tab === "calib" ? "page" : undefined}
+          >
+            <Crosshair size={14} />
+            Set up zones
+            {needsZones && tab !== "calib" ? (
+              <span className="font-inter cosmic-text-2xs font-bold uppercase tracking-wide opacity-80">
+                needed
+              </span>
+            ) : null}
+          </button>
+
+          <div className="ml-auto flex flex-col items-stretch gap-1 sm:items-end">
+            <button
+              type="button"
+              onClick={() => {
+                if (tab === "ops") {
+                  setAdvancedOpen((o) => !o)
+                } else {
+                  setAdvancedOpen(true)
+                  selectTab("ops")
+                }
+              }}
+              className="inline-flex items-center gap-1.5 self-end rounded-lg px-2.5 py-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)] transition-colors hover:text-[var(--app-sub)]"
+              style={{
+                color: tab === "ops" ? "var(--app-sub)" : undefined,
+                background: tab === "ops" ? "var(--app-raise)" : "transparent",
+              }}
+              aria-expanded={advancedOpen || tab === "ops"}
+            >
+              Advanced
+              <ChevronDown
+                size={14}
+                className="transition-transform"
+                style={{ transform: advancedOpen || tab === "ops" ? "rotate(180deg)" : undefined }}
+              />
+            </button>
+            {(advancedOpen || tab === "ops") && (
+              <button
+                type="button"
+                onClick={() => selectTab("ops")}
+                className="inline-flex items-center justify-end gap-1.5 rounded-lg border border-[var(--app-line)] px-2.5 py-1.5 font-inter cosmic-text-2xs font-semibold transition-colors"
+                style={{
+                  borderColor: tab === "ops" ? "var(--app-line)" : "var(--app-line)",
+                  background: tab === "ops" ? "var(--app-raise)" : "transparent",
+                  color: tab === "ops" ? "var(--app-text)" : "var(--app-faint)",
+                }}
+                aria-current={tab === "ops" ? "page" : undefined}
+              >
+                Ops tools
+              </button>
+            )}
+          </div>
+        </div>
+
+        <p className="mt-3 border-t border-[var(--app-line)] pt-3 font-inter cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
+          <span className="font-semibold text-[var(--app-text)]">You are here:</span> {hint.here}
+          <span className="text-[var(--app-faint)]"> · </span>
+          <span className="font-semibold text-[var(--app-text)]">Next:</span> {hint.next}
+        </p>
       </div>
 
       {tab === "video" ? (
         <LiveVision cameraId={streamCam} />
       ) : tab === "calib" ? (
         <OpsFrame
-          eyebrow="/dashboard/live/calibrate → :8000"
-          title="Calibration Studio"
+          eyebrow="/dashboard/live/calibrate → zone editor"
+          title="Set up zones"
           live={live}
         >
           {live ? (
             <iframe
-              title="EdgeSight Calibration Studio"
+              title="Set up zones — EdgeSight calibrate"
               src={EDGE_SIGHT_PORTAL_CALIB}
               className="h-[min(72vh,720px)] w-full border-0"
               allow="clipboard-read; clipboard-write"
             />
           ) : (
-            <OfflineHint name="Calibration Studio" />
+            <OfflineHint name="Zone editor" />
           )}
         </OpsFrame>
       ) : (
@@ -223,18 +354,18 @@ export function LiveOps() {
             <DataBadge badge={badges.legacy_ops} />
           </div>
           <OpsFrame
-            eyebrow="/dashboard/live/ops → :8501"
-            title="Streamlit operations UI"
+            eyebrow="/dashboard/live/ops · Advanced"
+            title="Ops tools"
             live={live}
           >
             {live ? (
               <iframe
-                title="EdgeSight Streamlit ops"
+                title="Advanced ops tools"
                 src={EDGE_SIGHT_OPS_EMBED}
                 className="h-[min(72vh,720px)] w-full border-0"
               />
             ) : (
-              <OfflineHint name="Streamlit ops" />
+              <OfflineHint name="Ops tools" />
             )}
           </OpsFrame>
         </div>
@@ -245,7 +376,7 @@ export function LiveOps() {
         sub="Friend-reviewed mefake/integration only — never push NuclearQuince or rajendrac3 main."
         action={
           <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs font-semibold text-[var(--app-faint)]">
-            <Layers size={12} /> Sidebar → Models & EdgeSight
+            <Layers size={12} /> Sidebar → Live
           </span>
         }
       >
@@ -258,10 +389,12 @@ docker compose up -d
 
 # Portal (only URL you need):
 #   http://localhost:3000/dashboard
-#   http://localhost:3000/dashboard/live
+#   http://localhost:3000/dashboard/live          ← Live (default)
+#   http://localhost:3000/dashboard/live?panel=calib  ← Set up zones
+#   http://localhost:3000/dashboard/live?panel=ops    ← Advanced · Ops tools
 # Backends (Docker only — proxied into the portal):
-#   Calibration  → /dashboard/live/calibrate  (:8000)
-#   Streamlit    → /dashboard/live/ops        (:8501)`}
+#   Zone editor  → /dashboard/live/calibrate  (:8000)
+#   Ops tools    → /dashboard/live/ops        (:8501)`}
         </pre>
         <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
           Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}
