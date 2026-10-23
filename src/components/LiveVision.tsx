@@ -57,10 +57,12 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
         <Video size={14} className="text-[var(--app-accent)]" />
         <div className="min-w-0 flex-1">
           <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
-            Live inference · {cam}
+            Watch · {cam}
           </p>
           <p className="truncate font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
-            Person detect + track + zones
+            {online
+              ? `${live?.models?.person_detector ?? "Person detector"} · boxes follow people`
+              : "Camera offline"}
           </p>
         </div>
       </header>
@@ -154,6 +156,23 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
                       {c.infer_fps != null ? ` · ${c.infer_fps} FPS` : ""}
                     </p>
                   ))}
+                </div>
+              )}
+              {!compact && live?.floor_view && (
+                <div className="sm:col-span-2 xl:col-span-1 space-y-1">
+                  <Label>Camera collaboration</Label>
+                  <p className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
+                    {live.floor_view.status} · {live.floor_view.camera_count} cameras · {live.floor_view.mapped_shared_zone_count} shared zones
+                  </p>
+                  {(live.floor_view.shared_zones ?? []).slice(0, 3).map((zone) => (
+                    <p key={zone.store_zone_id} className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
+                      {zone.store_zone_id}: {zone.camera_ids.join(" + ")} · {zone.status}
+                      {zone.deduplicated_occupancy != null ? ` · ${zone.deduplicated_occupancy} people` : " · separate counts"}
+                    </p>
+                  ))}
+                  <p className="font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
+                    {live.floor_view.note ?? live.fusion?.gate_reason ?? "Each angle stays separate until its shared floor zone is calibrated."}
+                  </p>
                 </div>
               )}
               {!compact && (

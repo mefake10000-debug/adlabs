@@ -21,7 +21,7 @@ export function LiveStoreBrief({ online, live, journey, error }: Props) {
   }).slice(0, 4)
 
   return (
-    <Panel title="Store brief" sub="From /api/v1/live only — no demo copy.">
+    <Panel title="Store brief" sub="One glance from the live camera — never invented.">
       {bullets.length === 0 ? (
         <p className="font-inter cosmic-text-sm text-[var(--app-faint)]">—</p>
       ) : (

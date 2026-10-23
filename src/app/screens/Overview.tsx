@@ -8,7 +8,6 @@ import { Panel, Chip, ScreenHeader } from "../ui"
 import { AreaChart } from "../charts"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { LiveVision } from "../../components/LiveVision"
-import { DataBadge } from "../../components/DataBadge"
 import { LiveSegment } from "../../components/LiveSegment"
 import { displayMetric } from "../../lib/data-freshness"
 
@@ -21,7 +20,7 @@ const QUICK = [
   { icon: FileText, label: "Brief", screen: "brief" as const },
 ]
 
-export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void }) {
+export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void } = {}) {
   const {
     occupancy,
     trafficHours,
@@ -29,122 +28,163 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
     liveKpis,
     status,
     queueLength,
-    sectionBadges,
     connectivityAgeSeconds,
     heroFlow,
+    presentSpark,
+    liveHistory,
   } = useEdgeSight()
   const online = Boolean(status?.online && status.live)
   const live = status?.live
   const stale = connectivityAgeSeconds != null && connectivityAgeSeconds > 15
   const storeLabel = live?.store_id ?? "—"
+  const spark = presentSpark.length >= 5 ? presentSpark : trafficHours
+  const needsEntrance = heroFlow.needsEntranceTripwire
 
   return (
     <div className="flex flex-col gap-6">
       <ScreenHeader
         eyebrow="Live now"
         title="Today"
-        sub="Entries in · people present · exits — bound to /api/v1/live. Empty until EdgeSight reports real values."
+        sub="Same three numbers as Live: In · Present · Out — from the camera, never from a demo store."
       >
-        <DataBadge badge={sectionBadges.today} />
-        <DataBadge badge={sectionBadges.connectivity} />
         <Chip tone={sourceChip.tone} title={sourceChip.title}>{sourceChip.label}</Chip>
         {connectivityAgeSeconds != null && (
-          <Chip tone={stale ? "gold" : "neutral"} title="live/state updated_epoch age">
-            {stale ? "stale · " : ""}age {connectivityAgeSeconds}s
+          <Chip tone={stale ? "gold" : "neutral"}>
+            {stale ? "stale · " : ""}Updated {connectivityAgeSeconds}s ago
           </Chip>
         )}
       </ScreenHeader>
 
+      <div
+        className="rounded-2xl border border-[var(--app-line)] px-4 py-3 sm:px-5"
+        style={{ background: "var(--app-card)" }}
+      >
+        <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
+          How to read this page
+        </p>
+        <ol className="mt-2 grid gap-2 sm:grid-cols-3">
+          {[
+            { n: "1", t: "Watch the camera", d: "Open Live for the full video plane." },
+            { n: "2", t: "Check Present", d: "Should move when people appear on camera." },
+            {
+              n: "3",
+              t: "Fix zones if In/Out stuck",
+              d: "Present > 0 with In/Out at 0 → mark an entrance tripwire.",
+            },
+          ].map((s) => (
+            <li key={s.n} className="flex gap-2.5">
+              <span
+                className="grid h-6 w-6 shrink-0 place-items-center rounded-full font-num cosmic-text-xs font-bold"
+                style={{ background: "var(--app-accent-soft)", color: "var(--app-accent)" }}
+              >
+                {s.n}
+              </span>
+              <div>
+                <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{s.t}</p>
+                <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">{s.d}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LiveSegment
-          title="Entries in"
-          brief={
-            heroFlow.needsEntranceTripwire
-              ? "Needs entrance tripwire — Mark in Live → Set up zones (0 until a crossing)."
-              : "Session tripwire IN for this pass."
-          }
+          title="In"
+          brief="Entrance line crossings into the store (this session)."
           value={heroFlow.entriesIn}
-          sourcePath={heroFlow.entriesPath}
-          badge={sectionBadges.entrance_tripwires}
           empty={!online || heroFlow.entriesIn == null}
+          needsHint={
+            needsEntrance ? "Needs: mark entrance tripwire on Live → Set up zones" : undefined
+          }
         />
         <LiveSegment
-          title="People present"
-          brief="Active customer tracks now — matches YOLO overlay boxes (moves without a tripwire)."
+          title="Present"
+          brief="People on camera right now — matches the boxes."
           value={heroFlow.peoplePresent}
-          sourcePath={heroFlow.presentPath}
-          badge={sectionBadges.today}
           empty={!online || heroFlow.peoplePresent == null}
         />
         <LiveSegment
-          title="Exits"
-          brief={
-            heroFlow.needsEntranceTripwire
-              ? "Needs entrance tripwire — opposite crossing direction."
-              : "Session tripwire OUT for this pass."
-          }
+          title="Out"
+          brief="Entrance line crossings leaving (this session)."
           value={heroFlow.exitsOut}
-          sourcePath={heroFlow.exitsPath}
-          badge={sectionBadges.entrance_tripwires}
           empty={!online || heroFlow.exitsOut == null}
+          needsHint={
+            needsEntrance ? "Needs: mark entrance tripwire on Live → Set up zones" : undefined
+          }
         />
       </div>
+
+      {needsEntrance ? (
+        <p className="font-inter cosmic-text-sm text-[var(--app-gold)]">
+          People visible — mark an entrance tripwire to count entries.{" "}
+          <button
+            type="button"
+            className="font-semibold underline"
+            onClick={() => onNavigate?.("liveOps")}
+          >
+            Open Live →
+          </button>
+        </p>
+      ) : null}
 
       <LiveVision compact />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <LiveSegment
           title="Queue length"
-          brief="People in calibrated queue zones (≥5s dwell)."
+          brief="People waiting in a queue zone."
           value={online ? displayMetric(queueLength) : null}
-          sourcePath="/api/v1/live · queue_length"
-          badge={sectionBadges.queues}
+          needsHint={online && queueLength == null ? "Needs: queue polygon in Set up zones" : undefined}
         />
         <LiveSegment
           title="Avg wait"
           brief="Mean wait across active queue zones."
           value={online && occupancy.avgWait !== "—" ? occupancy.avgWait : null}
-          sourcePath="/api/v1/live · avg_queue_wait_seconds"
-          badge={sectionBadges.queues}
+          needsHint={online && occupancy.avgWait === "—" ? "Needs: queue activity" : undefined}
         />
         <LiveSegment
           title="Avg dwell"
-          brief="Zone / time-in-frame dwell from live snapshot."
+          brief="How long people stay in view / zones."
           value={online && liveKpis.dwell !== "—" ? liveKpis.dwell : null}
-          sourcePath="/api/v1/live · avg_dwell_seconds"
-          badge={sectionBadges.today}
         />
         <LiveSegment
-          title="Engaged ratio"
-          brief="Head-facing / pose proxy — null when enrichment off (fast mode)."
+          title="Engaged"
+          brief="Facing / attention proxy — off in fast mode."
           value={liveKpis.engagedRatio}
-          sourcePath="/api/v1/live · engagement.engaged_ratio"
-          badge={sectionBadges.engagement}
+          needsHint={
+            online && liveKpis.engagedRatio == null
+              ? "Needs: quality mode (enrichment on)"
+              : undefined
+          }
         />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel
-          title="People present (live)"
+          title="Present over time"
           sub={
-            trafficHours.length > 0
-              ? "Live people_now ring buffer (or hourly rollups when available)."
-              : "Needs ≥5 live samples — never draws empty axes."
+            spark.length >= 5
+              ? "Live people on camera — ring buffer or hourly when available."
+              : "Needs a few seconds of video — never draws empty axes."
           }
-          action={<DataBadge badge={sectionBadges.today} />}
         >
-          {trafficHours.length >= 5 ? (
-            <AreaChart data={trafficHours} peaks={[]} unitLabel="people" />
+          {spark.length >= 5 ? (
+            <AreaChart data={spark} peaks={[]} unitLabel="people" />
           ) : (
             <EmptyBlock
               title="Collecting live samples"
-              brief="Present spark fills after ~5s of EdgeSight video. Hourly rollups appear later from telemetry."
+              brief={
+                online
+                  ? `Present spark fills after ~5s of video (${liveHistory.length}/5).`
+                  : "Start cameras, then return here."
+              }
             />
           )}
         </Panel>
         <Panel
-          title="Flow clarity"
-          sub="How detections become dashboard numbers."
+          title="How numbers are made"
+          sub="From boxes on video to dashboard digits."
           action={<Layers size={14} className="text-[var(--app-faint)]" />}
         >
           <ol className="flex flex-col gap-3">
@@ -152,27 +192,27 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
               {
                 icon: DoorOpen,
                 step: "Detect + track",
-                detail: "YOLO person boxes → ByteTrack IDs on the MJPEG stream.",
+                detail: "Camera finds people and keeps short IDs on the stream.",
               },
               {
                 icon: UserRound,
-                step: "People present",
-                detail: "people_now = active customer tracks (same count as HUD).",
+                step: "Present",
+                detail: "Count of people boxes right now.",
               },
               {
                 icon: DoorOpen,
-                step: "Entries in",
-                detail: "Tripwire line crossings → total_visitors (session IN).",
+                step: "In",
+                detail: "Crossing the entrance line into the store.",
               },
               {
                 icon: LogOut,
-                step: "Exits",
-                detail: "Opposite tripwire direction → total_exits (session OUT).",
+                step: "Out",
+                detail: "Crossing the entrance line leaving.",
               },
               {
                 icon: Timer,
                 step: "Queues / zones",
-                detail: "Polygon membership + dwell → queue_length, zone occupancy.",
+                detail: "Polygons you drew → queue length and zone presence.",
               },
             ].map((row) => (
               <li key={row.step} className="flex items-start gap-3">
@@ -192,41 +232,43 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <LiveSegment
           title="Floor zones"
-          brief="Needs dwell polygon in Set up zones — occupancy per calibrated zone."
+          brief="Calibrated polygons reporting occupancy."
           value={
             online && (status?.live?.zones?.length ?? 0) > 0
               ? `${status?.live?.zones?.length} zones`
               : null
           }
-          sourcePath="/api/v1/live · zones[]"
-          badge={sectionBadges.floor_zones}
           empty={!online || !(status?.live?.zones?.length)}
+          needsHint="Needs: dwell polygons in Set up zones"
         />
         <LiveSegment
           title="Shelf / display"
-          brief="Open-vocab category interest — never SKUs or revenue."
+          brief="Category interest — not SKUs or sales."
           value={
             online && (status?.products?.categories?.length ?? 0) > 0
               ? `${status?.products?.categories?.length} cats`
               : null
           }
-          sourcePath="/api/v1/live · products_top · analytics/products"
-          badge={sectionBadges.shelf}
+          needsHint={
+            online && !(status?.products?.categories?.length)
+              ? "Needs: shelf model / quality mode"
+              : undefined
+          }
         />
         <LiveSegment
           title="Staff present"
-          brief="Geometry staff-zone tag — no facial identity."
+          brief="People in a staff zone — not face ID."
           value={online ? displayMetric(live?.staff_now ?? null) : null}
-          sourcePath="/api/v1/live · staff_now"
-          badge={sectionBadges.staffing}
+          needsHint={
+            online && live?.staff_now == null ? "Needs: staff polygon" : undefined
+          }
         />
         <LiveSegment
           title="Demographics"
-          brief="k-anon age/gender only when publishable; never invent cohorts."
+          brief="Age/gender groups only when privacy gate allows."
           value={null}
-          sourcePath="/api/v1/analytics/demographics"
-          badge={sectionBadges.demographics}
           empty
+          needsHint="Needs: demographics enabled + enough samples"
         />
       </div>
 
@@ -249,14 +291,12 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
         Store {storeLabel}
         {" · "}
-        {sourceChip.title}
-        {" · "}
         <button
           type="button"
           className="text-[var(--app-accent)] hover:underline"
           onClick={() => onNavigate?.("liveOps")}
         >
-          Live hub →
+          Open Live floor →
         </button>
       </p>
     </div>

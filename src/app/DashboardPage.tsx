@@ -12,7 +12,7 @@ import {
 import Link from "next/link"
 import { Logo } from "../components/Logo"
 import { Chip, Segmented } from "./ui"
-import { TENANT, ALERTS } from "../data/dashboard"
+import { TENANT } from "../data/dashboard"
 import { EdgeSightProvider, useEdgeSight } from "../hooks/useEdgeSight"
 import { Overview } from "./screens/Overview"
 import { Stores, StoreDetail } from "./screens/Stores"
@@ -75,7 +75,6 @@ type Theme = "light" | "dark"
 
 const OWNER_NAME = "Priya"
 const OWNER_ROLE = "Brand owner · Organic Clothing Co."
-const ALERT_COUNT = ALERTS.length
 
 function greeting() {
   const h = new Date().getHours()
@@ -100,7 +99,7 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
       { id: "storefront", label: "Entrances", icon: Eye, color: "#3ECF8E" },
       { id: "zones", label: "Floor zones", icon: Map, color: "#FF9500" },
       { id: "queues", label: "Queues", icon: Timer, color: "#5ac8fa" },
-      { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
+      { id: "alerts", label: "Alerts", icon: ShieldCheck, color: "#FF3B30" },
     ],
   },
   {
@@ -128,7 +127,7 @@ const NAV_SECTIONS_BRAND: { label: string; items: NavItem[] }[] = [
       { id: "stores", label: "All stores", icon: Store, color: "#5ac8fa" },
       { id: "compare", label: "Compare stores", icon: BarChart3, color: "#5856D6" },
       { id: "history", label: "History", icon: HistoryIcon, color: "#007AFF" },
-      { id: "brief", label: "Monday brief", icon: FileText, badge: 3, color: "#FF3B30" },
+      { id: "brief", label: "Monday brief", icon: FileText, color: "#FF3B30" },
       { id: "demographics", label: "Age & groups", icon: Users, color: "#FF9500" },
       { id: "product", label: "Display interest", icon: Package, color: "#34C759" },
       { id: "tour", label: "How to read this", icon: Sparkles, color: "#8B7CF6" },
@@ -149,7 +148,7 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
       { id: "manager", label: "Manager today", icon: ClipboardList, color: "#3ECF8E" },
       { id: "queues", label: "Queues", icon: Timer, color: "#5ac8fa" },
       { id: "zones", label: "Floor zones", icon: Map, color: "#FF9500" },
-      { id: "alerts", label: "Alerts", icon: ShieldCheck, badge: ALERT_COUNT, color: "#FF3B30" },
+      { id: "alerts", label: "Alerts", icon: ShieldCheck, color: "#FF3B30" },
       { id: "staff", label: "Staff", icon: UserCog, color: "#34C759" },
       { id: "safety", label: "Safety · cautions", icon: ShieldAlert, color: "#FF9500" },
     ],
@@ -162,6 +161,20 @@ const NAV_SECTIONS_STORE: { label: string; items: NavItem[] }[] = [
     ],
   },
 ]
+
+function withLiveAlertBadge(
+  sections: { label: string; items: NavItem[] }[],
+  alertCount: number,
+): { label: string; items: NavItem[] }[] {
+  return sections.map((sec) => ({
+    ...sec,
+    items: sec.items.map((item) =>
+      item.id === "alerts"
+        ? { ...item, badge: alertCount > 0 ? alertCount : undefined }
+        : item,
+    ),
+  }))
+}
 
 const PAGE_TITLES: Record<Screen, string> = {
   overview: "Today",
@@ -201,7 +214,7 @@ export function DashboardPage({ initialScreen = "overview" }: { initialScreen?: 
 }
 
 function DashboardShell({ initialScreen = "overview" }: { initialScreen?: Screen }) {
-  const { sourceChip } = useEdgeSight()
+  const { sourceChip, alertsLive } = useEdgeSight()
   const [theme, setTheme] = useState<Theme>("dark")
   const [role, setRole] = useState<Role>("Brand")
   const [screen, setScreen] = useState<Screen>(initialScreen)
@@ -251,7 +264,10 @@ function DashboardShell({ initialScreen = "overview" }: { initialScreen?: Screen
     }
   }
 
-  const navSections = role === "Brand" ? NAV_SECTIONS_BRAND : NAV_SECTIONS_STORE
+  const navSections = withLiveAlertBadge(
+    role === "Brand" ? NAV_SECTIONS_BRAND : NAV_SECTIONS_STORE,
+    alertsLive.length,
+  )
 
   const renderScreen = () => {
     switch (screen) {

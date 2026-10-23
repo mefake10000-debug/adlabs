@@ -169,9 +169,10 @@ function buildValue(
         }))
       : []
 
+  // capacity 0 = unknown — never invent store capacity (old fixture was 60).
   const emptyOccupancy: typeof OCCUPANCY = {
     now: 0,
-    capacity: OCCUPANCY.capacity,
+    capacity: 0,
     level: 0,
     queue: 0,
     avgWait: "—",
@@ -182,11 +183,8 @@ function buildValue(
   const occupancy: typeof OCCUPANCY = online
     ? {
         now: peopleNow ?? 0,
-        capacity: OCCUPANCY.capacity,
-        level:
-          peopleNow == null
-            ? 0
-            : Math.min(100, Math.round((peopleNow / OCCUPANCY.capacity) * 100)),
+        capacity: 0,
+        level: 0,
         queue: queueLength ?? 0,
         avgWait:
           live?.avg_queue_wait_seconds != null
@@ -209,38 +207,31 @@ function buildValue(
 
   let demographicsLive: typeof DEMOGRAPHICS | null = null
   const demo = status?.demographics?.demographics
-  if (
-    online &&
-    demo &&
-    demo.publishable !== false &&
-    demo.age_bands &&
-    demo.age_bands.length > 0
-  ) {
+  if (online && demo && demo.publishable !== false) {
     const female = demo.gender_split?.find((g) => g.gender === "female")?.pct
     const male = demo.gender_split?.find((g) => g.gender === "male")?.pct
-    demographicsLive = {
-      ...DEMOGRAPHICS,
-      ages: mapAgeBands(demo.age_bands),
-      gender: {
-        female: female != null ? Math.round(female) : DEMOGRAPHICS.gender.female,
-        male: male != null ? Math.round(male) : DEMOGRAPHICS.gender.male,
-      },
-      note: demo.note ?? `k ≥ ${demo.k_anonymity} · sample ${demo.sample_size} · EdgeSight live`,
-      peak: occupancy.peakWindow,
-    }
-  } else if (online && demo && demo.gender_split?.length) {
-    const female = demo.gender_split.find((g) => g.gender === "female")?.pct
-    const male = demo.gender_split.find((g) => g.gender === "male")?.pct
-    demographicsLive = {
-      ...DEMOGRAPHICS,
-      gender: {
-        female: female != null ? Math.round(female) : DEMOGRAPHICS.gender.female,
-        male: male != null ? Math.round(male) : DEMOGRAPHICS.gender.male,
-      },
-      note:
-        demo.note ??
-        `k ≥ ${demo.k_anonymity} · sample ${demo.sample_size} · age bands withheld · EdgeSight live`,
-      peak: occupancy.peakWindow,
+    const ages =
+      demo.age_bands && demo.age_bands.length > 0 ? mapAgeBands(demo.age_bands) : []
+    // Only publish when Edge returned real cohorts — never fill from DEMOGRAPHICS fixtures.
+    if (ages.length > 0 || (female != null && male != null)) {
+      demographicsLive = {
+        ages,
+        gender: {
+          female: female != null ? Math.round(female) : 0,
+          male: male != null ? Math.round(male) : 0,
+        },
+        dynamics: { solo: 0, pair: 0 },
+        party: { individual: 0, group: 0 },
+        note:
+          demo.note ??
+          `k ≥ ${demo.k_anonymity} · sample ${demo.sample_size}${ages.length ? "" : " · age bands withheld"}`,
+        peak: occupancy.peakWindow,
+      }
+      // If one gender side missing, withhold the whole gender block via 0/0 + note
+      if (female == null || male == null) {
+        demographicsLive.gender = { female: 0, male: 0 }
+        demographicsLive.note += " · gender withheld until both sides clear k-anon"
+      }
     }
   }
   // When online but demographics key null → demographicsLive stays null (NO-DATA), not demo fixtures.
@@ -326,13 +317,15 @@ function buildValue(
   const staffTagged = primaryCameraState?.counts.staff_tagged ?? null
 
   const emptyStaff: typeof STAFF_INTEL = {
-    ...STAFF_INTEL,
+    title: STAFF_INTEL.title,
+    sub: STAFF_INTEL.sub,
     visitorsNow: 0,
     staffShare: "—",
     onFloor: 0,
-    method: "No live staff counts — calibrate a staff polygon or wait for EdgeSight",
+    method: "No live staff counts — draw a staff zone or start cameras",
+    windows: [],
     zones: [],
-    doNext: ["Open Live hub → Set up zones · draw staff polygon", "Start EdgeSight Docker if offline"],
+    doNext: ["Open Live → Set up zones · draw staff polygon", "Start EdgeSight if offline"],
   }
 
   const staffLive: typeof STAFF_INTEL = online
@@ -425,15 +418,15 @@ function buildValue(
           value: liveKpis.entries,
           delta: `exits ${liveKpis.exits}`,
           tone: "pos",
-          note: "Tripwire IN · /api/v1/live.total_visitors",
+          note: "Entrance line crossings this session",
           iconHint: "yield",
         },
         {
           label: "People in store",
           value: displayMetric(peopleNow),
-          delta: peopleNow != null ? `${occupancy.level}% of capacity` : "NO-DATA",
+          delta: peopleNow != null ? "active tracks now" : "NO-DATA",
           tone: "flat",
-          note: "Active tracks · /api/v1/live.people_now",
+          note: "Present = people boxes on camera",
           iconHint: "basket",
         },
         {

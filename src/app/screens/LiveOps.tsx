@@ -8,16 +8,17 @@ import { Panel, Chip, ScreenHeader } from "../ui"
 import { AreaChart } from "../charts"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { LiveSegment } from "../../components/LiveSegment"
-import { DUAL_DEPLOYMENT } from "../../data/models-pack"
 import {
   EDGE_SIGHT_OPS_EMBED,
   EDGE_SIGHT_PORTAL_CALIB,
-  EDGE_SIGHT_PORTAL_DOCS,
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
 import { LiveStoreBrief } from "../../components/LiveStoreBrief"
+import { LiveModelsStrip } from "../../components/LiveModelsStrip"
 import { RetailIntelligenceDrawer } from "../../components/RetailIntelligenceDrawer"
+import { JourneyHealth } from "../../components/JourneyHealth"
 import { ModelsStatusPanel } from "./Pipeline"
+import { displayMetric } from "../../lib/data-freshness"
 
 type PanelId = "video" | "calib" | "ops" | "models"
 
@@ -30,54 +31,6 @@ function readPanelFromUrl(): PanelId {
   if (path.endsWith("/ops")) return "ops"
   if (path.includes("pipeline") || path.includes("models")) return "models"
   return "video"
-}
-
-function flowHint(
-  tab: PanelId,
-  needsZones: boolean,
-  needsEntrance: boolean,
-  live: boolean,
-): { here: string; next: string } {
-  if (tab === "calib") {
-    return {
-      here: "Set up zones — entrance tripwire + queue / dwell",
-      next: "Save & Hot-Apply, then return to Live",
-    }
-  }
-  if (tab === "ops") {
-    return {
-      here: "Advanced — edge ops tools",
-      next: "Day-to-day watching stays on Live",
-    }
-  }
-  if (tab === "models") {
-    return {
-      here: "Models status — pack maturity + live node",
-      next: "Return to Live to watch In / Present / Out",
-    }
-  }
-  if (!live) {
-    return {
-      here: "Live — waiting for EdgeSight",
-      next: "Start Docker, then refresh",
-    }
-  }
-  if (needsEntrance) {
-    return {
-      here: "Live — Present tracks people; In/Out need an entrance line",
-      next: "Set up zones → Mark entrance tripwire (or Apply entrance template)",
-    }
-  }
-  if (needsZones) {
-    return {
-      here: "Live — video + KPIs",
-      next: "Set up zones so In / Present / Out can count",
-    }
-  }
-  return {
-    here: "Live — video + In / Present / Out + brief",
-    next: "Open Retail intelligence for floor-role segments",
-  }
 }
 
 /** Single header status chip: connection / sync age · colored only for real alerts. */
@@ -93,23 +46,15 @@ function SyncChip({
   queueAlert: boolean
 }) {
   if (checking) return <Chip tone="neutral">Checking…</Chip>
-  if (!live) return <Chip tone="gold">Offline · start Docker</Chip>
+  if (!live) return <Chip tone="gold">Offline · start cameras</Chip>
   const age =
     ageSeconds != null && Number.isFinite(ageSeconds)
       ? `Updated ${Math.max(0, Math.round(ageSeconds))}s ago`
       : "Updated just now"
   if (queueAlert) {
-    return (
-      <Chip tone="gold" title="queue_alert_active · same live snapshot as In/Present/Out">
-        Queue alert · {age}
-      </Chip>
-    )
+    return <Chip tone="gold" title="Queue alert from live camera">Queue alert · {age}</Chip>
   }
-  return (
-    <Chip tone="neutral" title="Shared live/state snapshot age — one poll clock for all visible numbers">
-      {age}
-    </Chip>
-  )
+  return <Chip tone="neutral" title="Shared live clock for every number on this page">{age}</Chip>
 }
 
 function OpsFrame({
@@ -141,6 +86,22 @@ function OpsFrame({
   )
 }
 
+function coachLine(present: number | null, inn: number | null, out: number | null, needsEntrance: boolean): string {
+  if (present != null && present > 0 && needsEntrance) {
+    return "People visible — mark an entrance tripwire to count entries."
+  }
+  if (present != null && present > 0 && (inn ?? 0) === 0 && (out ?? 0) === 0) {
+    return "People visible — mark an entrance tripwire to count entries."
+  }
+  if (present != null && present === 0 && (inn ?? 0) === 0) {
+    return "Floor looks empty right now — watch the video; Present should rise when someone walks in."
+  }
+  if ((inn ?? 0) > 0 || (out ?? 0) > 0) {
+    return "In and Out move only when someone crosses the entrance line you drew."
+  }
+  return "Present is who is on camera now. In / Out need an entrance line."
+}
+
 export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
   const edge = useEdgeSight()
   const live = edge.online
@@ -163,13 +124,23 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
     return noPolygons || kpisFlat || needsEntrance
   }, [edge.calibratedZones.length, edge.peopleNow, edge.tripwireCount, live, needsEntrance])
 
-  const hint = flowHint(tab, needsZones, needsEntrance, live)
-
   const streamCam = useMemo(() => {
     const fromLive = edge.status?.live?.camera_id
     if (fromLive) return fromLive
     return cams[0] ?? "cam_entrance_01"
   }, [cams, edge.status?.live?.camera_id])
+
+  const detectorName = edge.status?.live?.models?.person_detector ?? "Person detector"
+  const inferFps = edge.status?.live?.infer_fps
+  const displayFps =
+    edge.status?.live?.display_fps ?? edge.status?.live?.decode_fps ?? null
+
+  const coach = coachLine(
+    edge.heroFlow.peoplePresent,
+    edge.heroFlow.entriesIn,
+    edge.heroFlow.exitsOut,
+    needsEntrance,
+  )
 
   useEffect(() => {
     const initial = initialPanel ?? readPanelFromUrl()
@@ -177,7 +148,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
     if (initial === "ops") setAdvancedOpen(true)
     if (typeof window === "undefined") return
     const url = new URL(window.location.href)
-    // Retired industry verticals must not expand Retail intelligence.
     if (url.searchParams.has("industry")) {
       url.searchParams.delete("industry")
       window.history.replaceState({}, "", url.toString())
@@ -203,13 +173,18 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
     window.history.replaceState({}, "", url.toString())
   }
 
+  const queueLen = edge.queueLength
+  const staffNow = edge.status?.live?.staff_now ?? null
+  const hasQueueZone = edge.calibratedZones.some((z) => z.type === "queue")
+  const hasStaffZone = edge.calibratedZones.some((z) => z.type === "staff")
+
   return (
     <div className="flex flex-col gap-6">
       <ScreenHeader
         icon={Radio}
-        eyebrow="Live hub"
-        title="Live hub"
-        sub="Video · In / Present / Out · brief. Floor roles live under Retail intelligence."
+        eyebrow="Live"
+        title="Live floor"
+        sub="Watch the camera, check who is Present, then fix zones if counts stall."
       >
         <SyncChip
           live={live}
@@ -226,7 +201,43 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         </button>
       </ScreenHeader>
 
-      {/* Guided flow: Live primary · Set up zones secondary · Advanced nested tertiary */}
+      {/* Start here — new-user flow */}
+      {tab === "video" ? (
+        <div
+          className="rounded-2xl border border-[var(--app-line)] px-4 py-3 sm:px-5"
+          style={{ background: "var(--app-card)" }}
+        >
+          <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
+            Start here
+          </p>
+          <ol className="mt-2 grid gap-2 sm:grid-cols-3">
+            {[
+              { n: "1", t: "Watch video", d: "Boxes should follow people on the stream." },
+              { n: "2", t: "Check Present", d: "Present rises when someone is on camera — no line needed." },
+              {
+                n: "3",
+                t: "Set up zones if stuck",
+                d: "If Present > 0 but In/Out stay 0, mark an entrance tripwire.",
+              },
+            ].map((s) => (
+              <li key={s.n} className="flex gap-2.5">
+                <span
+                  className="grid h-6 w-6 shrink-0 place-items-center rounded-full font-num cosmic-text-xs font-bold"
+                  style={{ background: "var(--app-accent-soft)", color: "var(--app-accent)" }}
+                >
+                  {s.n}
+                </span>
+                <div>
+                  <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{s.t}</p>
+                  <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">{s.d}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+
+      {/* Guided tabs: Live · Set up zones · Advanced */}
       <div
         className="rounded-2xl border border-[var(--app-line)] px-4 py-3 sm:px-5"
         style={{ background: "var(--app-card)" }}
@@ -240,7 +251,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
               borderColor: tab === "video" ? "var(--app-accent)" : "var(--app-line)",
               background: tab === "video" ? "var(--app-accent-soft)" : "transparent",
               color: tab === "video" ? "var(--app-accent)" : "var(--app-sub)",
-              boxShadow: tab === "video" ? "0 0 0 1px var(--app-accent-soft)" : undefined,
             }}
             aria-current={tab === "video" ? "page" : undefined}
           >
@@ -321,7 +331,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
                     background: tab === "ops" ? "var(--app-raise)" : "transparent",
                     color: tab === "ops" ? "var(--app-text)" : "var(--app-faint)",
                   }}
-                  aria-current={tab === "ops" ? "page" : undefined}
                 >
                   Ops tools
                 </button>
@@ -333,103 +342,125 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
                     background: tab === "models" ? "var(--app-raise)" : "transparent",
                     color: tab === "models" ? "var(--app-text)" : "var(--app-faint)",
                   }}
-                  aria-current={tab === "models" ? "page" : undefined}
                 >
                   <Layers size={12} />
-                  Models status
+                  Full model catalog
                 </button>
               </div>
             )}
           </div>
         </div>
-
-        <p className="mt-3 border-t border-[var(--app-line)] pt-3 font-inter cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
-          <span className="font-semibold text-[var(--app-text)]">You are here:</span> {hint.here}
-          <span className="text-[var(--app-faint)]"> · </span>
-          <span className="font-semibold text-[var(--app-text)]">Next:</span> {hint.next}
-        </p>
       </div>
 
       {tab === "video" ? (
         <>
-          <LiveVision cameraId={streamCam} videoOnly />
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <LiveSegment
-              title="In"
-              brief={
-                needsEntrance
-                  ? "Needs entrance tripwire — Set up zones → Mark entrance (0 is real until someone crosses)."
-                  : "Session tripwire IN — increments when a track crosses the entrance line."
-              }
-              value={edge.heroFlow.entriesIn}
-              sourcePath={edge.heroFlow.entriesPath}
-              empty={!live || edge.heroFlow.entriesIn == null}
-            />
-            <LiveSegment
-              title="Present"
-              brief="Active customer tracks now — moves with boxes on the video (no tripwire required)."
-              value={edge.heroFlow.peoplePresent}
-              sourcePath={edge.heroFlow.presentPath}
-              empty={!live || edge.heroFlow.peoplePresent == null}
-            />
-            <LiveSegment
-              title="Out"
-              brief={
-                needsEntrance
-                  ? "Needs entrance tripwire — opposite crossing direction counts as Out."
-                  : "Session tripwire OUT — opposite direction across the entrance line."
-              }
-              value={edge.heroFlow.exitsOut}
-              sourcePath={edge.heroFlow.exitsPath}
-              empty={!live || edge.heroFlow.exitsOut == null}
-            />
-          </div>
-
-          {needsEntrance ? (
-            <div
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
-              style={{
-                borderColor: "var(--app-gold)",
-                background: "color-mix(in srgb, var(--app-gold) 10%, transparent)",
-              }}
-            >
-              <p className="font-inter cosmic-text-sm text-[var(--app-text)]">
-                People are on camera, but In/Out stay at 0 until an entrance line is marked.
+          {/* A. Watch */}
+          <section className="space-y-2" aria-label="Watch">
+            <div className="flex flex-wrap items-end justify-between gap-2 px-0.5">
+              <div>
+                <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
+                  A · Watch
+                </p>
+                <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
+                  Camera feed with people boxes
+                </p>
+              </div>
+              <p className="font-inter cosmic-text-xs text-[var(--app-sub)]">
+                {live
+                  ? `${detectorName} · infer ${inferFps != null ? `${inferFps}` : "—"} fps · display ${displayFps != null ? `${displayFps}` : "—"} fps`
+                  : "Waiting for camera…"}
               </p>
-              <button
-                type="button"
-                onClick={() => selectTab("calib")}
-                className="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-bold"
+            </div>
+            <LiveVision cameraId={streamCam} videoOnly />
+          </section>
+
+          {/* B. Now */}
+          <section className="space-y-3" aria-label="Now">
+            <div className="px-0.5">
+              <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
+                B · Now
+              </p>
+              <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
+                In · Present · Out
+              </p>
+              <p className="mt-1 font-inter cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
+                {coach}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <LiveSegment
+                title="In"
+                brief="People who crossed the entrance line into the store (this session)."
+                value={edge.heroFlow.entriesIn}
+                empty={!live || edge.heroFlow.entriesIn == null}
+              />
+              <LiveSegment
+                title="Present"
+                brief="People on camera right now — should move with the boxes."
+                value={edge.heroFlow.peoplePresent}
+                empty={!live || edge.heroFlow.peoplePresent == null}
+              />
+              <LiveSegment
+                title="Out"
+                brief="People who crossed the entrance line leaving (this session)."
+                value={edge.heroFlow.exitsOut}
+                empty={!live || edge.heroFlow.exitsOut == null}
+              />
+            </div>
+
+            {needsEntrance ? (
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
                 style={{
                   borderColor: "var(--app-gold)",
-                  color: "var(--app-gold)",
-                  background: "var(--app-card)",
+                  background: "color-mix(in srgb, var(--app-gold) 10%, transparent)",
                 }}
               >
-                <Crosshair size={14} />
-                Mark entrance tripwire
-              </button>
-            </div>
-          ) : null}
+                <p className="font-inter cosmic-text-sm text-[var(--app-text)]">
+                  People are on camera, but In/Out stay at 0 until you mark an entrance line.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => selectTab("calib")}
+                  className="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-bold"
+                  style={{
+                    borderColor: "var(--app-gold)",
+                    color: "var(--app-gold)",
+                    background: "var(--app-card)",
+                  }}
+                >
+                  <Crosshair size={14} />
+                  Mark entrance tripwire
+                </button>
+              </div>
+            ) : null}
 
-          {edge.presentSpark.length >= 5 ? (
-            <Panel
-              title="Present over time"
-              sub="Live people_now ring buffer — fills after a few seconds of video."
-            >
-              <AreaChart data={edge.presentSpark} peaks={[]} height={140} unitLabel="people" />
-            </Panel>
-          ) : live ? (
-            <Panel
-              title="Present over time"
-              sub="Needs ≥5 live samples (~5s) — chart stays hidden until then."
-            >
-              <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-                Collecting… {edge.liveHistory.length}/5
+            {edge.presentSpark.length >= 5 ? (
+              <Panel
+                title="Present over time"
+                sub="From the live camera only — fills after a few seconds."
+              >
+                <AreaChart data={edge.presentSpark} peaks={[]} height={140} unitLabel="people" />
+              </Panel>
+            ) : live ? (
+              <Panel title="Present over time" sub="Chart appears after a few seconds of video — never empty axes.">
+                <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
+                  Collecting… {edge.liveHistory.length}/5
+                </p>
+              </Panel>
+            ) : null}
+          </section>
+
+          {/* C. Models */}
+          <section className="space-y-2" aria-label="Models">
+            <div className="px-0.5">
+              <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.16em] text-[var(--app-faint)]">
+                C · Models
               </p>
-            </Panel>
-          ) : null}
+            </div>
+            <LiveModelsStrip />
+          </section>
 
           <LiveStoreBrief
             online={live}
@@ -438,6 +469,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             error={edge.status?.error}
           />
 
+          {/* More insights — collapsed; Needs… never fake digits */}
           <div
             className="rounded-2xl border border-[var(--app-line)]"
             style={{ background: "var(--app-card)" }}
@@ -450,10 +482,10 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             >
               <div>
                 <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
-                  Retail intelligence
+                  More insights
                 </p>
                 <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-                  Floor roles · entrance → path → dwell → queue → staff → shelf
+                  Queue · staff · journey · retail floor roles — open when you need them
                 </p>
               </div>
               <ChevronDown
@@ -464,7 +496,56 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             </button>
 
             {moreOpen ? (
-              <div className="border-t border-[var(--app-line)] px-4 py-4 sm:px-5">
+              <div className="space-y-5 border-t border-[var(--app-line)] px-4 py-4 sm:px-5">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <LiveSegment
+                    title="Queue"
+                    brief="How many people are waiting in a queue zone."
+                    value={
+                      !live
+                        ? null
+                        : hasQueueZone
+                          ? displayMetric(queueLen)
+                          : null
+                    }
+                    empty={!live || !hasQueueZone || queueLen == null}
+                    needsHint={
+                      live && !hasQueueZone
+                        ? "Needs: draw a queue polygon in Set up zones"
+                        : undefined
+                    }
+                  />
+                  <LiveSegment
+                    title="Staff on floor"
+                    brief="People standing in a staff zone (not face ID)."
+                    value={
+                      !live
+                        ? null
+                        : hasStaffZone
+                          ? displayMetric(staffNow)
+                          : null
+                    }
+                    empty={!live || !hasStaffZone || staffNow == null}
+                    needsHint={
+                      live && !hasStaffZone
+                        ? "Needs: draw a staff polygon in Set up zones"
+                        : undefined
+                    }
+                  />
+                  <LiveSegment
+                    title="Retail roles"
+                    brief="Entrance → path → dwell → queue → staff → shelf."
+                    value={null}
+                    empty
+                    needsHint="Open the floor-role panel below for each role’s live value or Needs…"
+                  />
+                </div>
+
+                <JourneyHealth
+                  journey={edge.status?.live?.journey}
+                  online={live}
+                />
+
                 <RetailIntelligenceDrawer embedded />
               </div>
             ) : null}
@@ -472,13 +553,13 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         </>
       ) : tab === "calib" ? (
         <OpsFrame
-          eyebrow="/dashboard/live/calibrate → zone editor"
+          eyebrow="Zone editor"
           title="Set up zones"
           live={live}
         >
           {live ? (
             <iframe
-              title="Set up zones — EdgeSight calibrate"
+              title="Set up zones"
               src={EDGE_SIGHT_PORTAL_CALIB}
               className="h-[min(72vh,720px)] w-full border-0"
               allow="clipboard-read; clipboard-write"
@@ -488,11 +569,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           )}
         </OpsFrame>
       ) : tab === "ops" ? (
-        <OpsFrame
-          eyebrow="/dashboard/live/ops · Advanced"
-          title="Ops tools"
-          live={live}
-        >
+        <OpsFrame eyebrow="Advanced" title="Ops tools" live={live}>
           {live ? (
             <iframe
               title="Advanced ops tools"
@@ -506,33 +583,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
       ) : (
         <ModelsStatusPanel embedded />
       )}
-
-      <Panel
-        title="How to run EdgeSight"
-        sub="Friend-reviewed mefake/integration only — never push NuclearQuince or rajendrac3 main."
-        action={
-          <a href={EDGE_SIGHT_PORTAL_DOCS} className="font-inter cosmic-text-xs font-semibold text-[var(--app-accent)]">
-            API docs
-          </a>
-        }
-      >
-        <pre className="overflow-x-auto rounded-2xl border border-[var(--app-line)] bg-[var(--app-raise)] p-4 font-mono cosmic-text-xs leading-relaxed text-[var(--app-sub)]">
-{`cd ~/Desktop/ad-labs-project/repos/ADLabs-dev
-git checkout mefake/integration
-python scripts/download_models.py
-python scripts/download_pack_models.py
-docker compose up -d
-
-# Portal (only URL you need):
-#   http://localhost:3000/dashboard/live
-#   http://localhost:3000/dashboard/live?panel=calib
-#   http://localhost:3000/dashboard/live?panel=ops
-#   http://localhost:3000/dashboard/live?panel=models`}
-        </pre>
-        <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
-          Edge: {DUAL_DEPLOYMENT.edge} Cloud: {DUAL_DEPLOYMENT.cloud}
-        </p>
-      </Panel>
     </div>
   )
 }
@@ -543,8 +593,7 @@ function OfflineHint({ name }: { name: string }) {
       <Radio size={28} className="text-[var(--app-faint)]" />
       <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{name} is offline</p>
       <p className="max-w-md font-inter cosmic-text-xs text-[var(--app-faint)]">
-        Start ADLabs-dev with Docker Compose, then refresh this page. Stay on{" "}
-        <span className="font-mono text-[var(--app-sub)]">localhost:3000/dashboard/live</span> — backends are proxied in.
+        Start the EdgeSight cameras (Docker on this machine), then refresh. Stay on this portal — video and numbers arrive here.
       </p>
     </div>
   )

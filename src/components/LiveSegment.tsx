@@ -5,8 +5,10 @@ type Props = {
   /** One-sentence brief of what the metric means. */
   brief: string
   value: string | number | null | undefined
-  /** JSON path or API source shown under the value. */
+  /** Optional eng path — omit on primary Live tiles. */
   sourcePath?: string
+  /** Operator next step when value is empty (never invent a digit). */
+  needsHint?: string
   /** Force empty when offline / null. */
   empty?: boolean
   /** @deprecated Kept for peer call sites; badges no longer render on KPI tiles. */
@@ -25,6 +27,7 @@ export function LiveSegment({
   brief,
   value,
   sourcePath,
+  needsHint,
   empty,
   className = "",
 }: Props) {
@@ -46,6 +49,9 @@ export function LiveSegment({
       </p>
       <p className="font-num cosmic-text-2xl font-bold leading-none text-[var(--app-text)]">{shown}</p>
       <p className="font-inter cosmic-text-xs leading-snug text-[var(--app-sub)]">{brief}</p>
+      {isEmpty && needsHint ? (
+        <p className="font-inter cosmic-text-xs font-semibold text-[var(--app-gold)]">{needsHint}</p>
+      ) : null}
       {sourcePath ? (
         <p className="truncate font-mono cosmic-text-2xs text-[var(--app-faint)]" title={sourcePath}>
           {sourcePath}
