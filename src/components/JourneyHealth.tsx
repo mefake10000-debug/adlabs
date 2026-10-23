@@ -8,7 +8,7 @@ import type { JourneyBlock, JourneyStageRow } from "../lib/store-brief"
 type Props = {
   journey: JourneyBlock | null | undefined
   online: boolean
-  /** Optional slot reserved for peer industry selector — never replaced here. */
+  /** Optional slot — Live hub uses RetailIntelligenceDrawer for segments. */
   industrySlot?: ReactNode
 }
 
@@ -31,13 +31,13 @@ export function JourneyHealth({ journey, online, industrySlot }: Props) {
   return (
     <Panel
       title="Service journey layout"
-      sub="Buffet metaphor · same stages map to a retail path. Values stay 0 until zones match stage tags."
+      sub="Path stages from zone tags. Values stay 0 until zones match stage tags."
       action={
         <div className="flex flex-wrap items-center gap-2">
           {industrySlot}
-          <span className="font-inter cosmic-text-2xs font-semibold uppercase tracking-[0.12em] text-[var(--app-faint)]">
-            {online ? (journey?.metaphor ?? "buffet") : "offline"}
-          </span>
+          <Chip tone={online && stages.length ? "live" : "neutral"}>
+            {online ? (journey?.metaphor ?? "retail path") : "offline"}
+          </Chip>
         </div>
       }
     >

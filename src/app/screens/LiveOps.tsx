@@ -14,13 +14,9 @@ import {
   EDGE_SIGHT_PORTAL_DOCS,
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
-import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
-import { IndustryModesPanel } from "../../components/IndustryModesPanel"
-import { JourneyHealth } from "../../components/JourneyHealth"
 import { LiveStoreBrief } from "../../components/LiveStoreBrief"
-import { AccountingFutureCard } from "../../components/AccountingFutureCard"
+import { RetailIntelligenceDrawer } from "../../components/RetailIntelligenceDrawer"
 import { ModelsStatusPanel } from "./Pipeline"
-import { displayMetric } from "../../lib/data-freshness"
 
 type PanelId = "video" | "calib" | "ops" | "models"
 
@@ -67,8 +63,8 @@ function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: str
     }
   }
   return {
-    here: "Live — video + KPIs",
-    next: "Watch the floor; open Set up zones only to edit polygons",
+    here: "Live — video + In / Present / Out + brief",
+    next: "Open Retail intelligence for floor-role segments",
   }
 }
 
@@ -142,7 +138,6 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
   const [moreOpen, setMoreOpen] = useState(false)
   const cams = edge.status?.cameras ?? []
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
-  const badges = edge.sectionBadges
   const queueAlert = live && Boolean(edge.status?.live?.queue_alert_active)
 
   const needsZones = useMemo(() => {
@@ -167,6 +162,11 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
     const initial = initialPanel ?? readPanelFromUrl()
     setTab(initial)
     if (initial === "ops") setAdvancedOpen(true)
+    if (typeof window === "undefined") return
+    const q = new URLSearchParams(window.location.search)
+    if (q.get("segment") || q.get("retail") === "1" || q.get("industry")) {
+      setMoreOpen(true)
+    }
   }, [initialPanel])
 
   const selectTab = (id: PanelId) => {
@@ -185,7 +185,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         icon={Radio}
         eyebrow="Live hub"
         title="Live hub"
-        sub="Video · In / Present / Out · store brief. Values stay — / 0 until /api/v1/live answers."
+        sub="Video · In / Present / Out · brief. Floor roles live under Retail intelligence."
       >
         <SyncChip
           live={live}
@@ -373,10 +373,10 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             >
               <div>
                 <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
-                  More insights
+                  Retail intelligence
                 </p>
                 <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
-                  Industry modes · journey · queue/FPS · parity · playbooks
+                  Floor roles · entrance → path → dwell → queue → staff → shelf
                 </p>
               </div>
               <ChevronDown
@@ -387,46 +387,8 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
             </button>
 
             {moreOpen ? (
-              <div className="space-y-4 border-t border-[var(--app-line)] px-4 py-4 sm:px-5">
-                <IndustryModesPanel />
-
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <LiveSegment
-                    title="Queue"
-                    brief="People in queue polygons."
-                    value={
-                      live
-                        ? `${displayMetric(edge.queueLength)}${edge.status?.live?.queue_alert_active ? " · alert" : ""}`
-                        : null
-                    }
-                    sourcePath="/api/v1/live · queue_length"
-                  />
-                  <LiveSegment
-                    title="Infer FPS"
-                    brief="Detect+track cadence."
-                    value={edge.status?.live?.infer_fps ?? edge.status?.device?.pipeline_fps ?? null}
-                    sourcePath="/api/v1/live · infer_fps"
-                  />
-                  <LiveSegment
-                    title="Cameras"
-                    brief="From cameras.yaml / live.cameras."
-                    value={live ? cams.length : null}
-                    sourcePath={cams.length ? cams.join(", ") : "/api/v1/cameras"}
-                  />
-                  <LiveSegment
-                    title="Zones · tripwires"
-                    brief="Polygons that drive In / Present / Out."
-                    value={live ? `${edge.calibratedZones.length} · ${edge.tripwireCount} trip` : null}
-                    sourcePath="/api/v1/config/cameras"
-                  />
-                </div>
-
-                <JourneyHealth online={live} journey={edge.status?.live?.journey} />
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <AccountingFutureCard />
-                  <IntelligenceParityPanel sectionBadges={badges} />
-                </div>
+              <div className="border-t border-[var(--app-line)] px-4 py-4 sm:px-5">
+                <RetailIntelligenceDrawer embedded />
               </div>
             ) : null}
           </div>

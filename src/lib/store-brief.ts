@@ -131,7 +131,7 @@ export const ACCOUNTING_FUTURE = {
   badge: "FUTURE" as const,
   title: "Accounting complete view",
   summary:
-    "Join CV journey traction with POS/daybook sales to see layout spread vs missing stages — which buffet/retail steps sell, and which stay cold.",
+    "Join CV journey traction with POS/daybook sales to see layout spread vs missing stages — which path steps sell, and which stay cold.",
   stubs: [
     {
       method: "POST",

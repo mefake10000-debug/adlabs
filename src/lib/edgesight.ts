@@ -77,6 +77,9 @@ export type EdgeSightLive = {
   entrance?: {
     glass?: { stop_rate?: number | null; glass_entrants?: number; settling?: boolean; status?: string } | null
     stop_rate?: number | null
+    conversion_glass_to_entry?: number | null
+    glass_entrants?: number | null
+    note?: string
     status?: string
     badge_copy?: string | null
     settling?: boolean
@@ -97,6 +100,7 @@ export type EdgeSightLive = {
       state?: string
       tagged_ids?: number
     }[]
+    response_time_to_queue?: number | null
     status?: string
   } | null
   safety?: { active?: { alert_id?: string; title?: string; recommended_action?: string }[]; note?: string } | null
@@ -124,13 +128,13 @@ export type EdgeSightLive = {
     kpi?: {
       avg_wait_ms?: number | null
       p95_wait_ms?: number | null
-      p95_available?: boolean
+      p95_available?: boolean | null
       completed?: number
       served?: number
       abandoned?: number
       service_rate?: number | null
       service_rate_basis?: string | null
-    }
+    } | null
     recent_episodes?: {
       track_id: number
       join_ts: string
@@ -142,7 +146,7 @@ export type EdgeSightLive = {
     abandon_status?: string
     abandon_note?: string | null
   }[] | null
-  /** Fashion NFC reader webhook buffer — empty until real POSTs. */
+  /** Optional NFC reader webhook buffer — empty until real POSTs. Not a Live segment. */
   nfc?: {
     status: "LIVE" | "NEEDS-HARDWARE" | string
     recent_taps: {
@@ -158,32 +162,19 @@ export type EdgeSightLive = {
     connect_hint?: string
     note?: string
   } | null
-  /** Honest industry maturity map from EdgeSight (no sample KPIs). */
-  industry?: {
-    fashion?: { nfc_taps?: string; note?: string }
-    restaurant?: {
-      tables?: string
-      staff?: string
-      service_timestamps?: string
-      food_served?: string
-      tables_occupied?: number | null
-      tables_calibrated?: number | null
-      note?: string
-    }
-    manufacturing?: {
-      line_activity?: string
-      boxes?: string
-      defects?: string
-      note?: string
-    }
-    jewelry?: {
-      high_interaction_zones?: string
-      touch_proxy_zone_revisits?: string
-      hand_near_shelf_pose?: string
-      note?: string
-    }
+  /** Floor-role maturity map (preferred over deprecated industry). */
+  retail_roles?: {
+    schema?: string
+    entrance?: Record<string, unknown>
+    path?: Record<string, unknown>
+    dwell?: Record<string, unknown>
+    queue?: Record<string, unknown>
+    staff?: Record<string, unknown>
+    shelf?: Record<string, unknown>
   } | null
-  /** Buffet / retail path layout health — optional; 0 defaults when absent. */
+  /** @deprecated Industry vertical map — Live hub uses retail_roles / floor segments. */
+  industry?: Record<string, unknown> | null
+  /** Path layout health — optional; 0 defaults when absent. */
   journey?: {
     metaphor?: string
     schema?: string
