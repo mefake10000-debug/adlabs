@@ -325,8 +325,29 @@ function buildValue(
       }
     : emptyStaff
 
+  const catalogAlerts: LiveAlert[] = (live?.alerts?.active ?? []).map((a, i) => ({
+    id: a.id || `live-alert-${i}`,
+    severity:
+      a.severity === "critical"
+        ? "critical"
+        : a.severity === "warning"
+          ? "high"
+          : a.severity === "info"
+            ? "low"
+            : "medium",
+    category: "ops",
+    zone: queueZones[0]?.name ?? "Floor",
+    title: a.title || a.id,
+    message: a.reason || a.title || a.id,
+    time: "now",
+    action: a.recommended_action || "Review live feed",
+    screen: "queues",
+    source: "alerts catalog · /api/v1/live.alerts",
+    live: true,
+  }))
+
   const queueAlert: LiveAlert | null =
-    online && live?.queue_alert_active
+    online && live?.queue_alert_active && !catalogAlerts.some((a) => /QUEUE/i.test(a.id))
       ? {
           id: "live-queue",
           severity: "critical",
@@ -342,9 +363,9 @@ function buildValue(
         }
       : null
 
-  // Online: queue alert only. Offline: []. Never seed demo ALERTS.
+  // Online: catalog + queue only. Offline: []. Never seed demo ALERTS as live.
   const alertsLive: LiveAlert[] = online
-    ? [...(queueAlert ? [queueAlert] : [])]
+    ? [...catalogAlerts, ...(queueAlert ? [queueAlert] : [])]
     : []
 
   const emptyBusiness: typeof BUSINESS_KPIS = BUSINESS_KPIS.map((k) => ({
@@ -414,6 +435,12 @@ function buildValue(
           source: live.source,
           models: live.models ?? null,
           engagement: live.engagement ?? null,
+          stop_rate: live.stop_rate ?? null,
+          entrance: live.entrance ?? null,
+          floor: live.floor ?? null,
+          alerts: live.alerts ?? null,
+          safety: live.safety ?? null,
+          field_status: live.field_status ?? null,
         }
       : null,
     heatmapOk: status?.heatmapOk ?? null,

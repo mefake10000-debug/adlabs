@@ -73,14 +73,75 @@ export type EdgeSightLive = {
     stage_tag?: string
   }[] | null
   staff_zones?: { id: string; name: string; type?: string; tagged_ids?: number }[] | null
+  stop_rate?: number | null
+  entrance?: {
+    glass?: { stop_rate?: number | null; glass_entrants?: number; settling?: boolean; status?: string } | null
+    stop_rate?: number | null
+    status?: string
+    badge_copy?: string | null
+    settling?: boolean
+  } | null
+  floor?: {
+    zone_traction?: { zone_id: string; name?: string; U?: number; traction_score?: number; occupancy?: number }[]
+    paths_active?: unknown[]
+    top_routes?: { route_key: string; count: number }[]
+    status?: string
+    badge_copy?: string | null
+  } | null
+  staff?: {
+    zones?: {
+      id: string
+      name: string
+      staff_present?: number
+      expected_on_post?: number | null
+      state?: string
+      tagged_ids?: number
+    }[]
+    status?: string
+  } | null
+  safety?: { active?: { alert_id?: string; title?: string; recommended_action?: string }[]; note?: string } | null
+  alerts?: {
+    active?: {
+      id: string
+      title?: string
+      severity?: string
+      reason?: string
+      recommended_action?: string
+      data_status?: string
+      active?: boolean
+    }[]
+    partial_catalog?: unknown[]
+    future_catalog?: unknown[]
+  } | null
+  field_status?: Record<string, string> | null
   queues?: {
     id: string
     name: string
     queue_length?: number
     avg_wait_seconds?: number
     alert_active?: boolean
+    now?: { length?: number; min_wait_ms?: number | null; max_wait_ms?: number | null; staff_on_post?: number }
+    kpi?: {
+      avg_wait_ms?: number | null
+      p95_wait_ms?: number | null
+      p95_available?: boolean
+      completed?: number
+      served?: number
+      abandoned?: number
+      service_rate?: number | null
+      service_rate_basis?: string | null
+    }
+    recent_episodes?: {
+      track_id: number
+      join_ts: string
+      leave_ts?: string | null
+      wait_ms?: number
+      outcome?: string
+      abandon?: boolean | null
+    }[]
+    abandon_status?: string
+    abandon_note?: string | null
   }[] | null
-  field_status?: Record<string, string> | null
   /** Fashion NFC reader webhook buffer — empty until real POSTs. */
   nfc?: {
     status: "LIVE" | "NEEDS-HARDWARE" | string

@@ -110,6 +110,20 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
               hint="Cumulative · live/state"
             />
             <Stat
+              label="Glass stop-rate"
+              value={
+                live?.stop_rate != null
+                  ? `${Math.round(live.stop_rate * 100)}%`
+                  : "—"
+              }
+              hint={
+                live?.entrance?.badge_copy
+                  || (live?.entrance?.status === "FUTURE"
+                    ? "Needs glass ROI — nothing invented"
+                    : "entrance.stop_rate")
+              }
+            />
+            <Stat
               label="Infer FPS"
               value={live?.infer_fps != null ? String(live.infer_fps) : "—"}
               hint={[

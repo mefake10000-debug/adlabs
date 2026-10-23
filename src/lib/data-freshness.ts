@@ -34,6 +34,11 @@ export type LiveStateQueue = {
   queue_length: number | null
   avg_wait_seconds: number | null
   alert_active: boolean | null
+  now?: { length?: number | null; min_wait_ms?: number | null; max_wait_ms?: number | null; staff_on_post?: number | null } | null
+  kpi?: { avg_wait_ms?: number | null; p95_wait_ms?: number | null; p95_available?: boolean; completed?: number | null; served?: number | null; abandoned?: number | null; service_rate?: number | null; service_rate_basis?: string | null } | null
+  recent_episodes?: { track_id: number; join_ts: string; leave_ts?: string | null; wait_ms?: number; outcome?: string; abandon?: boolean | null }[] | null
+  abandon_status?: string | null
+  abandon_note?: string | null
 }
 
 export type LiveStateZone = {
@@ -60,6 +65,12 @@ export type LiveStateCamera = {
   } | null
   models: EdgeModelStatus[] | null
   tripwires: { id: string; name: string; in_count: number; out_count: number }[] | null
+  stop_rate?: number | null
+  entrance_status?: string | null
+  entrance_badge_copy?: string | null
+  floor_traction?: { zone_id: string; name?: string; U?: number; traction_score?: number; occupancy?: number }[] | null
+  staff_detail?: { id: string; name: string; staff_present?: number; expected_on_post?: number | null; state?: string }[] | null
+  field_status?: Record<string, string> | null
 }
 
 export type LiveState = {
@@ -73,13 +84,17 @@ export type SectionId =
   | "camera_wall"
   | "today"
   | "entrance_tripwires"
+  | "entrance_stop_rate"
   | "floor_zones"
+  | "floor_paths"
   | "heatmap"
   | "queues"
   | "staffing"
   | "shelf"
   | "engagement"
   | "demographics"
+  | "alerts"
+  | "safety"
   | "legacy_ops"
   | "connectivity"
 
@@ -87,13 +102,17 @@ export const SECTION_CADENCE_MS: Record<SectionId, number | null> = {
   camera_wall: null, // continuous MJPEG
   today: 10_000,
   entrance_tripwires: 1_000,
+  entrance_stop_rate: 2_000,
   floor_zones: 1_000,
+  floor_paths: 2_000,
   heatmap: 10_000,
   queues: 1_000,
   staffing: 1_000,
   shelf: 1_000, // live products_top; analytics/products is 24h rollup
   engagement: 1_000,
   demographics: null, // windowed / on demand
+  alerts: 2_000,
+  safety: 2_000,
   legacy_ops: null,
   connectivity: null,
 }
@@ -102,13 +121,17 @@ export const SECTION_SOURCE: Record<SectionId, string> = {
   camera_wall: "/api/v1/stream/{cam} MJPEG",
   today: "/api/v1/live",
   entrance_tripwires: "live/state.cameras[].counts.tripwire_in/out_cumulative",
+  entrance_stop_rate: "live.entrance.stop_rate / glass ROI",
   floor_zones: "live/state.cameras[].dwell_zones[]",
+  floor_paths: "live.floor.paths_active · zone_traction",
   heatmap: "/api/v1/heatmap/{cam}",
   queues: "live/state.cameras[].queues[]",
   staffing: "counts.staff_visible/tagged · models[]",
   shelf: "products_top · /api/v1/analytics/products",
   engagement: "engagement",
   demographics: "demographics",
+  alerts: "live.alerts.active · catalog",
+  safety: "live.safety.active",
   legacy_ops: ":3000 Streamlit proxy",
   connectivity: "state age from updated_epoch",
 }
@@ -181,7 +204,17 @@ type SnapshotCam = {
     queue_length?: number | null
     avg_wait_seconds?: number | null
     alert_active?: boolean | null
+    now?: LiveStateQueue["now"]
+    kpi?: LiveStateQueue["kpi"]
+    recent_episodes?: LiveStateQueue["recent_episodes"]
+    abandon_status?: string | null
+    abandon_note?: string | null
   }[] | null
+  stop_rate?: number | null
+  entrance?: { status?: string; badge_copy?: string | null; stop_rate?: number | null } | null
+  floor?: { zone_traction?: LiveStateCamera["floor_traction"]; status?: string; paths_active?: unknown[] } | null
+  staff?: { zones?: LiveStateCamera["staff_detail"] } | null
+  field_status?: Record<string, string> | null
   zones?: {
     id: string
     name: string
@@ -250,6 +283,11 @@ export function snapshotToCameraState(snap: SnapshotCam): LiveStateCamera | null
           queue_length: q.queue_length ?? null,
           avg_wait_seconds: q.avg_wait_seconds ?? null,
           alert_active: q.alert_active ?? null,
+          now: q.now ?? null,
+          kpi: q.kpi ?? null,
+          recent_episodes: q.recent_episodes ?? null,
+          abandon_status: q.abandon_status ?? null,
+          abandon_note: q.abandon_note ?? null,
         }))
 
   const eng = snap.engagement
@@ -280,6 +318,12 @@ export function snapshotToCameraState(snap: SnapshotCam): LiveStateCamera | null
     engagement,
     models: normalizeModels(snap.models),
     tripwires,
+    stop_rate: snap.stop_rate ?? snap.entrance?.stop_rate ?? null,
+    entrance_status: snap.entrance?.status ?? snap.field_status?.entrance_stop_rate ?? null,
+    entrance_badge_copy: snap.entrance?.badge_copy ?? null,
+    floor_traction: snap.floor?.zone_traction ?? null,
+    staff_detail: snap.staff?.zones ?? null,
+    field_status: snap.field_status ?? null,
   }
 }
 
@@ -334,6 +378,12 @@ export type SectionBadgeInput = {
     source?: string | null
     models?: Record<string, unknown> | null
     engagement?: Record<string, number | null> | null
+    stop_rate?: number | null
+    entrance?: { status?: string; badge_copy?: string | null; stop_rate?: number | null } | null
+    floor?: { status?: string; paths_active?: unknown[]; zone_traction?: unknown[] } | null
+    alerts?: { active?: unknown[] } | null
+    safety?: { active?: unknown[] } | null
+    field_status?: Record<string, string> | null
   } | null
   heatmapOk: boolean | null
   productsAnalytics: { categories: unknown[] } | null | undefined
@@ -415,6 +465,21 @@ export function evaluateSectionBadge(section: SectionId, input: SectionBadgeInpu
         ? badge("live", `Cumulative tripwire IN/OUT · ${src} · ${cadenceNote}`)
         : badge("partial", `Counts present; models not loaded · ${src}`)
     }
+    case "entrance_stop_rate": {
+      const st = input.live?.entrance?.status ?? cam?.entrance_status ?? input.live?.field_status?.entrance_stop_rate
+      if (st === "FUTURE" || (input.live?.stop_rate == null && cam?.stop_rate == null && st !== "LIVE")) {
+        return badge(
+          "partial",
+          input.live?.entrance?.badge_copy
+            || cam?.entrance_badge_copy
+            || "Stop-rate needs glass ROI calibration — nothing invented.",
+        )
+      }
+      if (input.live?.stop_rate != null || cam?.stop_rate != null) {
+        return badge("live", `stop_rate measured · ${src} · ${cadenceNote}`)
+      }
+      return badge("no-data", `stop_rate null · ${src}`)
+    }
     case "floor_zones": {
       if (cam?.dwell_zones == null) {
         return badge("no-data", `dwell_zones null · ${src}`)
@@ -423,6 +488,16 @@ export function evaluateSectionBadge(section: SectionId, input: SectionBadgeInpu
       return personReady
         ? badge("live", `${cam.dwell_zones.length} dwell zone(s) · ${src} · ${cadenceNote}`)
         : badge("partial", `Zones present; models not loaded · ${src}`)
+    }
+    case "floor_paths": {
+      const traction = cam?.floor_traction
+      const floor = input.live?.floor
+      if (traction == null && floor == null) {
+        return badge("no-data", `floor block null · ${src}`)
+      }
+      return personReady
+        ? badge("live", `paths/traction from tracks · ${src} · ${cadenceNote}`)
+        : badge("partial", `Floor present; models not loaded · ${src}`)
     }
     case "heatmap": {
       if (input.heatmapOk == null) {
@@ -436,9 +511,23 @@ export function evaluateSectionBadge(section: SectionId, input: SectionBadgeInpu
       if (cam?.queues == null) {
         return badge("no-data", `queues null · ${src}`)
       }
+      const abandonPartial = cam.queues.some((q) => q.abandon_status === "PARTIAL")
+      if (personReady && abandonPartial) {
+        return badge("partial", `${cam.queues.length} queue(s) · episodes LIVE · abandon PARTIAL · ${cadenceNote}`)
+      }
       return personReady
         ? badge("live", `${cam.queues.length} queue zone(s) · ${src} · ${cadenceNote}`)
         : badge("partial", `Queues present; models not loaded · ${src}`)
+    }
+    case "alerts": {
+      const active = input.live?.alerts?.active
+      if (active == null) return badge("no-data", `alerts null · ${src}`)
+      return badge("live", `${active.length} active LIVE alert(s) · catalog gated · ${cadenceNote}`)
+    }
+    case "safety": {
+      const active = input.live?.safety?.active
+      if (active == null) return badge("no-data", `safety null · ${src}`)
+      return badge("live", active.length ? `${active.length} safety candidate(s) · human review` : `Safety idle · ${cadenceNote}`)
     }
     case "staffing": {
       const vis = cam?.counts.staff_visible
@@ -497,13 +586,17 @@ export function evaluateAllSectionBadges(input: SectionBadgeInput): Record<Secti
     "camera_wall",
     "today",
     "entrance_tripwires",
+    "entrance_stop_rate",
     "floor_zones",
+    "floor_paths",
     "heatmap",
     "queues",
     "staffing",
     "shelf",
     "engagement",
     "demographics",
+    "alerts",
+    "safety",
     "legacy_ops",
     "connectivity",
   ]

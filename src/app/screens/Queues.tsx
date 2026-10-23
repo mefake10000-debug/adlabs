@@ -68,12 +68,62 @@ export function Queues() {
                   </p>
                   <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
                     wait {q.avg_wait_seconds != null ? `${Math.round(q.avg_wait_seconds)}s` : "—"}
+                    {q.now?.max_wait_ms != null ? ` · longest now ${(q.now.max_wait_ms / 1000).toFixed(0)}s` : ""}
                     {q.alert_active ? " · alert" : ""}
+                  </p>
+                  <p className="mt-1 font-inter cosmic-text-2xs text-[var(--app-faint)]">
+                    avg(W) {q.kpi?.avg_wait_ms != null ? `${Math.round(q.kpi.avg_wait_ms / 1000)}s` : "—"}
+                    {" · p95 "}
+                    {q.kpi?.p95_available && q.kpi.p95_wait_ms != null
+                      ? `${Math.round(q.kpi.p95_wait_ms / 1000)}s`
+                      : "settling (≥20)"}
+                    {q.abandon_status === "PARTIAL" ? " · abandon PARTIAL" : ""}
                   </p>
                 </li>
               ))}
             </ul>
           )}
+        </Panel>
+      )}
+
+      {online && liveQueues && liveQueues.some((q) => (q.recent_episodes?.length ?? 0) > 0) && (
+        <Panel title="Queue episodes · join / leave" sub="recent_episodes[] · abandon null without service_point">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left">
+              <thead>
+                <tr className="font-inter cosmic-text-2xs uppercase tracking-[0.08em] text-[var(--app-faint)]">
+                  <th className="pb-2 pr-3 font-semibold">Queue</th>
+                  <th className="pb-2 pr-3 font-semibold">Track</th>
+                  <th className="pb-2 pr-3 font-semibold">Join</th>
+                  <th className="pb-2 pr-3 font-semibold">Leave</th>
+                  <th className="pb-2 pr-3 font-semibold">Wait</th>
+                  <th className="pb-2 font-semibold">Abandon</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liveQueues.flatMap((q) =>
+                  (q.recent_episodes ?? []).slice(-8).map((ep) => (
+                    <tr key={`${q.id}-${ep.track_id}-${ep.join_ts}`} className="border-t border-[var(--app-line)]">
+                      <td className="py-2 pr-3 font-inter cosmic-text-xs">{q.name}</td>
+                      <td className="py-2 pr-3 font-mono cosmic-text-xs text-[var(--app-faint)]">{ep.track_id}</td>
+                      <td className="py-2 pr-3 font-mono cosmic-text-2xs text-[var(--app-faint)]">
+                        {(ep.join_ts || "").replace("T", " ").replace("Z", "")}
+                      </td>
+                      <td className="py-2 pr-3 font-mono cosmic-text-2xs text-[var(--app-faint)]">
+                        {ep.leave_ts ? ep.leave_ts.replace("T", " ").replace("Z", "") : "—"}
+                      </td>
+                      <td className="py-2 pr-3 font-num cosmic-text-xs">
+                        {ep.wait_ms != null ? `${Math.round(ep.wait_ms / 1000)}s` : "—"}
+                      </td>
+                      <td className="py-2 font-inter cosmic-text-xs text-[var(--app-faint)]">
+                        {ep.abandon == null ? "—" : ep.abandon ? "yes" : "no"}
+                      </td>
+                    </tr>
+                  )),
+                )}
+              </tbody>
+            </table>
+          </div>
         </Panel>
       )}
 

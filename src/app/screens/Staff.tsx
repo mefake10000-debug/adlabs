@@ -56,6 +56,28 @@ export function Staff() {
         ))}
       </div>
 
+      {online && (primaryCameraState?.staff_detail?.length ?? 0) > 0 && (
+        <Panel title="Staff zone occupancy (MVP)" sub="staff.zones[] · geometry · no face ID">
+          <ul className="grid gap-2.5 sm:grid-cols-2">
+            {primaryCameraState!.staff_detail!.map((z) => (
+              <li key={z.id} className="rounded-xl border border-[var(--app-line)] px-4 py-3">
+                <p className="font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">{z.name}</p>
+                <p className="mt-1 font-num cosmic-text-xl font-bold text-[var(--app-text)]">
+                  {displayMetric(z.staff_present)}
+                  <span className="cosmic-text-sm text-[var(--app-faint)]">
+                    {" "}/ {z.expected_on_post != null ? z.expected_on_post : "—"}
+                  </span>
+                </p>
+                <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
+                  {z.state ?? "UNCALIBRATED"}
+                  {z.expected_on_post == null ? " · target not set" : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+
       <Panel title="Staffing windows" sub="Need vs on floor — from entry peaks + roster" action={<Label>Act now</Label>}>
         <ul className="space-y-2.5">
           {s.windows.map((w) => (
