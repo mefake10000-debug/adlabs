@@ -121,9 +121,15 @@ export function LiveVision({ cameraId, className = "", compact = false }: Props)
                 .join(" · ") || "person_detector"}
             />
             <Stat
-              label="Decode FPS"
-              value={live?.decode_fps != null ? String(live.decode_fps) : "—"}
-              hint="Reader rate · MJPEG can refresh faster than infer"
+              label="Display FPS"
+              value={
+                live?.display_fps != null
+                  ? String(live.display_fps)
+                  : live?.decode_fps != null
+                    ? String(live.decode_fps)
+                    : "—"
+              }
+              hint="Annotated JPEG / MJPEG · boxes update at Infer FPS"
             />
             {tripBadge && (
               <div className="sm:col-span-2 xl:col-span-1 flex items-center gap-2">

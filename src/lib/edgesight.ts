@@ -16,6 +16,8 @@ export type EdgeSightLive = {
   staff_now?: number | null
   infer_fps?: number
   decode_fps?: number
+  /** Annotated JPEG write rate (MJPEG can track this; boxes update at infer_fps). */
+  display_fps?: number
   /** Edge performance preset: fast (demo) | quality (enrichment). */
   perf_mode?: string
   source?: "live_snapshot" | "telemetry_rollups" | string
