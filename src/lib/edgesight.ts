@@ -16,6 +16,8 @@ export type EdgeSightLive = {
   staff_now?: number | null
   infer_fps?: number
   decode_fps?: number
+  /** Edge performance preset: fast (demo) | quality (enrichment). */
+  perf_mode?: string
   source?: "live_snapshot" | "telemetry_rollups" | string
   occupancy_mode?: string
   occupancy_note?: string
@@ -32,7 +34,11 @@ export type EdgeSightLive = {
   }[]
   models?: {
     person_detector?: string
+    imgsz?: number | null
     tracker?: string
+    perf_mode?: string
+    infer_every_n?: number
+    enrichment?: boolean
     pose?: boolean
     face_boxes?: boolean
     face_identity?: boolean
