@@ -100,8 +100,19 @@ export type EdgeSightLive = {
       state?: string
       tagged_ids?: number
     }[]
+    queue_response?: {
+      queue_id?: string
+      staff_zone_id?: string | null
+      alert_ts?: string
+      first_staff_seen_ts?: string | null
+      response_time_s?: number | null
+      basis?: string
+    }[]
     response_time_to_queue?: number | null
+    response_sample_count?: number
+    open_unanswered?: number
     status?: string
+    note?: string
   } | null
   safety?: { active?: { alert_id?: string; title?: string; recommended_action?: string }[]; note?: string } | null
   alerts?: {

@@ -82,8 +82,9 @@ export const RETAIL_SEGMENTS: Record<RetailSegmentId, RetailSegmentDef> = {
       },
     ],
     futures: [
-      "Draw a glass ROI in Set up zones to unlock stop-rate (Moondream not required).",
+      "Mark glass: Set up zones → polygon → type glass (or glass_views in cameras.yaml).",
       "Pair facade cam + door tripwire for honest glass→entry conversion.",
+      "With ROI but no lookers yet, stop-rate shows measured 0 — never a demo rate.",
     ],
   },
   path: {

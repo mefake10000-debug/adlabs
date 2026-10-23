@@ -222,7 +222,8 @@ export function resolveSegmentKpis(
             maturity = "LIVE"
           } else {
             value = null
-            maturity = "PARTIAL"
+            // Empty until sample gate — not a fake percentile
+            maturity = "EMPTY"
           }
         }
         break
@@ -247,7 +248,7 @@ export function resolveSegmentKpis(
           }
         } else if (kpi.id === "response") {
           const staffLive = live as EdgeSightLive & {
-            staff?: { response_time_to_queue?: number | null }
+            staff?: { response_time_to_queue?: number | null; status?: string | null }
           }
           const rt = staffLive?.staff?.response_time_to_queue
           if (rt != null && Number.isFinite(rt)) {
@@ -255,7 +256,10 @@ export function resolveSegmentKpis(
             maturity = "LIVE"
           } else {
             value = null
-            maturity = "PARTIAL"
+            maturity =
+              staffLive?.staff?.status === "PARTIAL" || staffLive?.staff?.status === "EMPTY"
+                ? (staffLive.staff.status as SegmentMaturity)
+                : "EMPTY"
           }
         }
         break
