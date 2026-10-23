@@ -44,6 +44,7 @@ export type EdgeSightLive = {
     pose?: boolean
     face_boxes?: boolean
     face_identity?: boolean
+    products?: boolean
     note?: string
   } | null
   engagement?: {
@@ -54,6 +55,73 @@ export type EdgeSightLive = {
   } | null
   /** cameras.yaml order when present on store snapshot */
   cameras?: string[]
+  /** Open-vocab / detector category interest when products model is on. */
+  products_top?: {
+    category: string
+    viewers?: number
+    detections?: number
+    avg_dwell_seconds?: number
+  }[] | null
+  zones?: {
+    id: string
+    name: string
+    type?: string
+    occupancy?: number | null
+    avg_dwell_seconds?: number | null
+    visits?: number | null
+    journey_stage?: string
+    stage_tag?: string
+  }[] | null
+  staff_zones?: { id: string; name: string; type?: string; tagged_ids?: number }[] | null
+  queues?: {
+    id: string
+    name: string
+    queue_length?: number
+    avg_wait_seconds?: number
+    alert_active?: boolean
+  }[] | null
+  field_status?: Record<string, string> | null
+  /** Fashion NFC reader webhook buffer — empty until real POSTs. */
+  nfc?: {
+    status: "LIVE" | "NEEDS-HARDWARE" | string
+    recent_taps: {
+      product_id: string
+      zone?: string | null
+      zone_id?: string | null
+      camera_id?: string | null
+      tapped_at?: string
+      received_at?: string
+      session_index?: number
+    }[]
+    tap_count_session: number
+    connect_hint?: string
+    note?: string
+  } | null
+  /** Honest industry maturity map from EdgeSight (no sample KPIs). */
+  industry?: {
+    fashion?: { nfc_taps?: string; note?: string }
+    restaurant?: {
+      tables?: string
+      staff?: string
+      service_timestamps?: string
+      food_served?: string
+      tables_occupied?: number | null
+      tables_calibrated?: number | null
+      note?: string
+    }
+    manufacturing?: {
+      line_activity?: string
+      boxes?: string
+      defects?: string
+      note?: string
+    }
+    jewelry?: {
+      high_interaction_zones?: string
+      touch_proxy_zone_revisits?: string
+      hand_near_shelf_pose?: string
+      note?: string
+    }
+  } | null
 }
 
 export type EdgeSightSummary = {

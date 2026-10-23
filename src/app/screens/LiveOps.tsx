@@ -17,6 +17,7 @@ import {
 } from "../../lib/edgesight"
 import { LiveVision } from "../../components/LiveVision"
 import { IntelligenceParityPanel } from "../../components/IntelligenceParityPanel"
+import { IndustryModesPanel } from "../../components/IndustryModesPanel"
 import { ModelsStatusPanel } from "./Pipeline"
 import { displayMetric } from "../../lib/data-freshness"
 
@@ -157,7 +158,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
         icon={Radio}
         eyebrow="Live hub"
         title="Live hub"
-        sub="One destination: Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
+        sub="Industry modes · Vision · Set up zones · Ops · Models. Values stay — / 0 / nil until /api/v1/live answers."
       >
         <DataBadge badge={badges.connectivity} />
         <DataBadge badge={badges.camera_wall} />
@@ -175,6 +176,8 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           <RefreshCw size={12} /> Refresh
         </button>
       </ScreenHeader>
+
+      <IndustryModesPanel />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LiveSegment
