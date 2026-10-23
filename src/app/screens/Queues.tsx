@@ -164,13 +164,19 @@ export function Queues() {
       <div className="grid gap-5 xl:grid-cols-[1fr_1.4fr]">
         <OccupancyGauge occupancy={occupancy} />
         <Panel
-          title="Hourly entries"
-          action={<Label>today</Label>}
-          verified={online ? "EdgeSight tripwire" : "Tripwire · demo"}
+          title="People / entries over time"
+          action={<Label>live</Label>}
+          verified={online ? "EdgeSight live history" : "Tripwire · demo"}
         >
-          <AreaChart data={trafficHours} peaks={[{ from: "15", to: "17" }]} height={190} />
+          {trafficHours.length >= 5 ? (
+            <AreaChart data={trafficHours} peaks={[]} height={190} unitLabel="people" />
+          ) : (
+            <p className="font-inter cosmic-text-xs text-[var(--app-faint)] py-8 text-center">
+              Needs ≥5 live samples — chart hidden until then (no empty axes).
+            </p>
+          )}
           <p className="mt-3 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            Queue pressure tracks entry peaks — staff to the live peak window above.
+            Queue length needs a queue polygon in Set up zones (≥5s dwell).
           </p>
         </Panel>
       </div>

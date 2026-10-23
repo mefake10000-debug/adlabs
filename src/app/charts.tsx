@@ -58,6 +58,19 @@ export function AreaChart({
   const padL = 40
   const padR = 8
   const plotW = w - padL - padR
+  // Never draw broken axes from an empty series — caller should hide, but guard anyway.
+  if (!data.length) {
+    return (
+      <div
+        className="flex items-center justify-center font-inter cosmic-text-xs text-[var(--app-faint)]"
+        style={{ height }}
+        role="img"
+        aria-label={`No ${unitLabel} samples yet`}
+      >
+        Waiting for ≥5 live samples…
+      </div>
+    )
+  }
   const max = Math.max(...data.map((d) => d.v), 1) * 1.12
   const x = (i: number) => padL + (data.length <= 1 ? plotW / 2 : (i / (data.length - 1)) * plotW)
   const y = (v: number) => h - padB - (v / max) * (h - padB - 14)

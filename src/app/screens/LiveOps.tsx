@@ -5,6 +5,7 @@ import {
   ChevronDown, Crosshair, Radio, RefreshCw, Layers, Video,
 } from "lucide-react"
 import { Panel, Chip, ScreenHeader } from "../ui"
+import { AreaChart } from "../charts"
 import { useEdgeSight } from "../../hooks/useEdgeSight"
 import { LiveSegment } from "../../components/LiveSegment"
 import { DUAL_DEPLOYMENT } from "../../data/models-pack"
@@ -31,11 +32,16 @@ function readPanelFromUrl(): PanelId {
   return "video"
 }
 
-function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: string; next: string } {
+function flowHint(
+  tab: PanelId,
+  needsZones: boolean,
+  needsEntrance: boolean,
+  live: boolean,
+): { here: string; next: string } {
   if (tab === "calib") {
     return {
-      here: "Set up zones — draw tripwires and floor polygons",
-      next: "Return to Live to watch In / Present / Out",
+      here: "Set up zones — entrance tripwire + queue / dwell",
+      next: "Save & Hot-Apply, then return to Live",
     }
   }
   if (tab === "ops") {
@@ -54,6 +60,12 @@ function flowHint(tab: PanelId, needsZones: boolean, live: boolean): { here: str
     return {
       here: "Live — waiting for EdgeSight",
       next: "Start Docker, then refresh",
+    }
+  }
+  if (needsEntrance) {
+    return {
+      here: "Live — Present tracks people; In/Out need an entrance line",
+      next: "Set up zones → Mark entrance tripwire (or Apply entrance template)",
     }
   }
   if (needsZones) {
@@ -140,6 +152,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
   const state: "checking" | "live" | "down" = edge.loading && !edge.status ? "checking" : live ? "live" : "down"
   const queueAlert = live && Boolean(edge.status?.live?.queue_alert_active)
 
+  const needsEntrance = edge.heroFlow.needsEntranceTripwire
   const needsZones = useMemo(() => {
     const noPolygons = edge.calibratedZones.length === 0 && edge.tripwireCount === 0
     const people = edge.peopleNow
@@ -147,10 +160,10 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
       live &&
       (people == null || people === 0) &&
       edge.tripwireCount === 0
-    return noPolygons || kpisFlat
-  }, [edge.calibratedZones.length, edge.peopleNow, edge.tripwireCount, live])
+    return noPolygons || kpisFlat || needsEntrance
+  }, [edge.calibratedZones.length, edge.peopleNow, edge.tripwireCount, live, needsEntrance])
 
-  const hint = flowHint(tab, needsZones, live)
+  const hint = flowHint(tab, needsZones, needsEntrance, live)
 
   const streamCam = useMemo(() => {
     const fromLive = edge.status?.live?.camera_id
@@ -344,26 +357,79 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <LiveSegment
               title="In"
-              brief="Session tripwire IN."
+              brief={
+                needsEntrance
+                  ? "Needs entrance tripwire — Set up zones → Mark entrance (0 is real until someone crosses)."
+                  : "Session tripwire IN — increments when a track crosses the entrance line."
+              }
               value={edge.heroFlow.entriesIn}
               sourcePath={edge.heroFlow.entriesPath}
               empty={!live || edge.heroFlow.entriesIn == null}
             />
             <LiveSegment
               title="Present"
-              brief="Active customer tracks."
+              brief="Active customer tracks now — moves with boxes on the video (no tripwire required)."
               value={edge.heroFlow.peoplePresent}
               sourcePath={edge.heroFlow.presentPath}
               empty={!live || edge.heroFlow.peoplePresent == null}
             />
             <LiveSegment
               title="Out"
-              brief="Session tripwire OUT."
+              brief={
+                needsEntrance
+                  ? "Needs entrance tripwire — opposite crossing direction counts as Out."
+                  : "Session tripwire OUT — opposite direction across the entrance line."
+              }
               value={edge.heroFlow.exitsOut}
               sourcePath={edge.heroFlow.exitsPath}
               empty={!live || edge.heroFlow.exitsOut == null}
             />
           </div>
+
+          {needsEntrance ? (
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+              style={{
+                borderColor: "var(--app-gold)",
+                background: "color-mix(in srgb, var(--app-gold) 10%, transparent)",
+              }}
+            >
+              <p className="font-inter cosmic-text-sm text-[var(--app-text)]">
+                People are on camera, but In/Out stay at 0 until an entrance line is marked.
+              </p>
+              <button
+                type="button"
+                onClick={() => selectTab("calib")}
+                className="inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 font-inter cosmic-text-xs font-bold"
+                style={{
+                  borderColor: "var(--app-gold)",
+                  color: "var(--app-gold)",
+                  background: "var(--app-card)",
+                }}
+              >
+                <Crosshair size={14} />
+                Mark entrance tripwire
+              </button>
+            </div>
+          ) : null}
+
+          {edge.presentSpark.length >= 5 ? (
+            <Panel
+              title="Present over time"
+              sub="Live people_now ring buffer — fills after a few seconds of video."
+            >
+              <AreaChart data={edge.presentSpark} peaks={[]} height={140} unitLabel="people" />
+            </Panel>
+          ) : live ? (
+            <Panel
+              title="Present over time"
+              sub="Needs ≥5 live samples (~5s) — chart stays hidden until then."
+            >
+              <p className="font-inter cosmic-text-xs text-[var(--app-faint)]">
+                Collecting… {edge.liveHistory.length}/5
+              </p>
+            </Panel>
+          ) : null}
 
           <LiveStoreBrief
             online={live}

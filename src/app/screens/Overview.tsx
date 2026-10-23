@@ -58,7 +58,11 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <LiveSegment
           title="Entries in"
-          brief="Cumulative tripwire IN crossings for this session."
+          brief={
+            heroFlow.needsEntranceTripwire
+              ? "Needs entrance tripwire — Mark in Live → Set up zones (0 until a crossing)."
+              : "Session tripwire IN for this pass."
+          }
           value={heroFlow.entriesIn}
           sourcePath={heroFlow.entriesPath}
           badge={sectionBadges.entrance_tripwires}
@@ -66,7 +70,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         />
         <LiveSegment
           title="People present"
-          brief="Active customer tracks now — matches YOLO overlay boxes."
+          brief="Active customer tracks now — matches YOLO overlay boxes (moves without a tripwire)."
           value={heroFlow.peoplePresent}
           sourcePath={heroFlow.presentPath}
           badge={sectionBadges.today}
@@ -74,7 +78,11 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         />
         <LiveSegment
           title="Exits"
-          brief="Cumulative tripwire OUT crossings for this session."
+          brief={
+            heroFlow.needsEntranceTripwire
+              ? "Needs entrance tripwire — opposite crossing direction."
+              : "Session tripwire OUT for this pass."
+          }
           value={heroFlow.exitsOut}
           sourcePath={heroFlow.exitsPath}
           badge={sectionBadges.entrance_tripwires}
@@ -117,16 +125,20 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel
-          title="Hourly traffic"
-          sub="From analytics summary rollups — empty until EdgeSight has history."
+          title="People present (live)"
+          sub={
+            trafficHours.length > 0
+              ? "Live people_now ring buffer (or hourly rollups when available)."
+              : "Needs ≥5 live samples — never draws empty axes."
+          }
           action={<DataBadge badge={sectionBadges.today} />}
         >
-          {trafficHours.length > 0 ? (
-            <AreaChart data={trafficHours} peaks={[]} />
+          {trafficHours.length >= 5 ? (
+            <AreaChart data={trafficHours} peaks={[]} unitLabel="people" />
           ) : (
             <EmptyBlock
-              title="No hourly rollups yet"
-              brief="Appears after telemetry_rollups accumulate. Value stays — until then."
+              title="Collecting live samples"
+              brief="Present spark fills after ~5s of EdgeSight video. Hourly rollups appear later from telemetry."
             />
           )}
         </Panel>
@@ -180,11 +192,15 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <LiveSegment
           title="Floor zones"
-          brief="Occupancy per calibrated dwell polygon."
-          value={online ? "—" : null}
-          sourcePath="/api/v1/live/snapshot · zones[]"
+          brief="Needs dwell polygon in Set up zones — occupancy per calibrated zone."
+          value={
+            online && (status?.live?.zones?.length ?? 0) > 0
+              ? `${status?.live?.zones?.length} zones`
+              : null
+          }
+          sourcePath="/api/v1/live · zones[]"
           badge={sectionBadges.floor_zones}
-          empty
+          empty={!online || !(status?.live?.zones?.length)}
         />
         <LiveSegment
           title="Shelf / display"

@@ -51,7 +51,15 @@ export type HeroFlow = {
   entriesPath: string
   presentPath: string
   exitsPath: string
+  /** True when tripwire counts are missing/idle but tracks are live — show Mark entrance CTA. */
+  needsEntranceTripwire: boolean
 }
+
+/** Ring buffer of people_now samples for Present spark (≥N before chart). */
+export type LiveHistoryPoint = { t: number; people: number; inn: number; out: number }
+
+const LIVE_HISTORY_MAX = 90
+const LIVE_HISTORY_MIN_CHART = 5
 
 export type LiveAlert = OwnerAlert & { live: boolean }
 
@@ -96,6 +104,10 @@ export type EdgeSightContextValue = {
   events: EdgeSightEvent[]
   history: EdgeSightHistoryRow[]
   historyOccupancy: { h: string; v: number }[]
+  /** Client ring buffer of live people_now / In / Out — for sparklines. */
+  liveHistory: LiveHistoryPoint[]
+  /** people_now series ready for chart (≥ LIVE_HISTORY_MIN_CHART). */
+  presentSpark: { h: string; v: number }[]
   /** Live catalog / queue alerts only — never demo fixtures. */
   alertsLive: LiveAlert[]
   staffLive: typeof STAFF_INTEL
@@ -123,6 +135,7 @@ function buildValue(
   liveState: LiveState | null,
   loading: boolean,
   refresh: () => void,
+  liveHistory: LiveHistoryPoint[] = [],
 ): EdgeSightContextValue {
   const online = Boolean(status?.online && status.live)
   const live = status?.live
@@ -140,12 +153,21 @@ function buildValue(
     null
 
   // Null-safe: never invent demo numbers — null / — until EdgeSight answers.
+  // Prefer per-cam live/state (frame-synced) over store aggregate.
   const peopleNow: number | null = online
-    ? (live?.people_now ?? live?.net_occupancy ?? primaryCameraState?.counts.people_now ?? null)
+    ? (primaryCameraState?.counts.people_now ?? live?.people_now ?? live?.net_occupancy ?? null)
     : null
   const queueLength: number | null = online
     ? (primaryCameraState?.queues?.[0]?.queue_length ?? live?.queue_length ?? null)
     : null
+
+  const presentSpark =
+    liveHistory.length >= LIVE_HISTORY_MIN_CHART
+      ? liveHistory.map((p, i) => ({
+          h: String(i),
+          v: p.people,
+        }))
+      : []
 
   const emptyOccupancy: typeof OCCUPANCY = {
     now: 0,
@@ -173,11 +195,17 @@ function buildValue(
               ? formatWait(primaryCameraState.queues[0].avg_wait_seconds)
               : "—",
         peakWindow: formatPeakHour(summary?.peak_period?.hour) || "—",
-        trend: [],
+        // Prefer live people_now ring buffer over empty demo trend.
+        trend:
+          presentSpark.length > 0
+            ? presentSpark.map((p) => p.v)
+            : [],
       }
     : emptyOccupancy
 
   const trafficHours = online ? hourlyToChart(summary?.hourly_breakdown) : []
+  // Prefer live Present spark when hourly rollups are empty (avoids broken empty axes).
+  const trafficOrSpark = trafficHours.length >= LIVE_HISTORY_MIN_CHART ? trafficHours : presentSpark
 
   let demographicsLive: typeof DEMOGRAPHICS | null = null
   const demo = status?.demographics?.demographics
@@ -234,12 +262,25 @@ function buildValue(
       }
 
   const snapEng = primaryCameraState?.engagement ?? live?.engagement
+  // Prefer per-cam tripwire from live/state — matches YOLO HUD; avoid poisoned store day SUM.
   const entriesNum: number | null = online
-    ? (live?.total_visitors ?? summary?.total_visitors ?? primaryCameraState?.counts.tripwire_in_cumulative ?? null)
+    ? (primaryCameraState?.counts.tripwire_in_cumulative ??
+        live?.per_camera?.find((c) => c.camera_id === primaryCameraId)?.in_count ??
+        live?.total_visitors ??
+        null)
     : null
   const exitsNum: number | null = online
-    ? (live?.total_exits ?? summary?.total_exits ?? primaryCameraState?.counts.tripwire_out_cumulative ?? null)
+    ? (primaryCameraState?.counts.tripwire_out_cumulative ??
+        live?.per_camera?.find((c) => c.camera_id === primaryCameraId)?.out_count ??
+        live?.total_exits ??
+        null)
     : null
+
+  const tripwireCountEarly = countTripwires(configs)
+  const needsEntranceTripwire =
+    online &&
+    (peopleNow ?? 0) > 0 &&
+    (tripwireCountEarly === 0 || ((entriesNum ?? 0) === 0 && (exitsNum ?? 0) === 0))
 
   const liveKpis = {
     entries: entriesNum != null ? entriesNum.toLocaleString("en-IN") : "—",
@@ -264,9 +305,10 @@ function buildValue(
     entriesIn: entriesNum,
     peoplePresent: peopleNow,
     exitsOut: exitsNum,
-    entriesPath: "/api/v1/live · total_visitors  (per_camera[].in_count)",
-    presentPath: "/api/v1/live · people_now  (active tracks)",
-    exitsPath: "/api/v1/live · total_exits  (per_camera[].out_count)",
+    entriesPath: "live/state · tripwire_in  (session / pass)",
+    presentPath: "live/state · people_now  (active tracks)",
+    exitsPath: "live/state · tripwire_out  (session / pass)",
+    needsEntranceTripwire,
   }
 
   const calibratedZones: CalibratedZoneRow[] = flattenCalibratedZones(configs).map((row) => ({
@@ -458,7 +500,7 @@ function buildValue(
     occupancy,
     peopleNow,
     queueLength,
-    trafficHours,
+    trafficHours: trafficOrSpark,
     demographicsLive: online ? demographicsLive : null,
     sourceChip,
     liveKpis,
@@ -471,6 +513,8 @@ function buildValue(
     events: status?.events ?? [],
     history: status?.history ?? [],
     historyOccupancy: historyToOccupancySeries(status?.history),
+    liveHistory,
+    presentSpark,
     alertsLive,
     staffLive,
     businessLive,
@@ -482,6 +526,7 @@ function buildValue(
 export function EdgeSightProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<EdgeSightStatus | null>(null)
   const [liveState, setLiveState] = useState<LiveState | null>(null)
+  const [liveHistory, setLiveHistory] = useState<LiveHistoryPoint[]>([])
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(() => {
@@ -538,6 +583,41 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
             cameras: data.state?.cameras.map((c) => c.camera_id) ?? prev?.cameras,
           }
         })
+        // Append to Present history buffer (≤1s cadence).
+        const primaryId =
+          data.state?.primary_camera_id ??
+          data.state?.cameras?.[0]?.camera_id ??
+          data.live.cameras?.[0] ??
+          null
+        const cam =
+          data.state?.cameras.find((c) => c.camera_id === primaryId) ??
+          data.state?.cameras[0]
+        const people =
+          cam?.counts.people_now ?? data.live.people_now ?? data.live.net_occupancy
+        if (typeof people === "number" && Number.isFinite(people)) {
+          const inn =
+            cam?.counts.tripwire_in_cumulative ??
+            data.live.per_camera?.find((c) => c.camera_id === primaryId)?.in_count ??
+            data.live.total_visitors ??
+            0
+          const out =
+            cam?.counts.tripwire_out_cumulative ??
+            data.live.per_camera?.find((c) => c.camera_id === primaryId)?.out_count ??
+            data.live.total_exits ??
+            0
+          setLiveHistory((prev) => {
+            const next = [
+              ...prev,
+              {
+                t: Date.now(),
+                people,
+                inn: typeof inn === "number" ? inn : 0,
+                out: typeof out === "number" ? out : 0,
+              },
+            ]
+            return next.length > LIVE_HISTORY_MAX ? next.slice(-LIVE_HISTORY_MAX) : next
+          })
+        }
       } catch {
         /* keep last good snapshot */
       }
@@ -565,8 +645,8 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
   }, [refresh, refreshLive])
 
   const value = useMemo(
-    () => buildValue(status, liveState, loading, () => { refresh() }),
-    [status, liveState, loading, refresh],
+    () => buildValue(status, liveState, loading, () => { refresh() }, liveHistory),
+    [status, liveState, loading, refresh, liveHistory],
   )
 
   return <EdgeSightContext.Provider value={value}>{children}</EdgeSightContext.Provider>
