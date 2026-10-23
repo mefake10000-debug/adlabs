@@ -145,12 +145,6 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
                 }
                 hint="Annotated JPEG / MJPEG · boxes update at Infer FPS"
               />
-              {tripBadge && (
-                <div className="sm:col-span-2 xl:col-span-1 flex items-center gap-2">
-                  <DataBadge badge={tripBadge} />
-                  <span className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Entrance tripwires</span>
-                </div>
-              )}
               {!compact && (live?.per_camera?.length ?? 0) > 0 && (
                 <div className="sm:col-span-2 xl:col-span-1 space-y-1">
                   <Label>Per camera</Label>
