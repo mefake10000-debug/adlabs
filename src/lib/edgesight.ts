@@ -13,6 +13,21 @@ export type EdgeSightLive = {
   last_updated: string
   /** Frame-synced active customer tracks (matches YOLO MJPEG HUD). Null ⇒ NO-DATA, never coerce to 0. */
   people_now?: number | null
+  /** Customer track ids on this frame. Present = track_ids.length. */
+  track_ids?: Array<number | string> | null
+  active_tracks?: number | null
+  present_binding?: string | null
+  inout_binding?: string | null
+  session_in?: number | null
+  session_out?: number | null
+  products_top_withheld?: string | null
+  tripwires?: {
+    id?: string
+    name?: string
+    in_count?: number | null
+    out_count?: number | null
+    camera_id?: string
+  }[] | null
   staff_now?: number | null
   infer_fps?: number
   decode_fps?: number

@@ -36,6 +36,7 @@ import {
   STAFF_INTEL,
   type OwnerAlert,
 } from "../data/dashboard"
+import { engagementRatio, presentFromTracks, sessionCrossing } from "../lib/live-kpis"
 
 /** Heavy aggregate poll (summary, demographics, products, heatmap check…). Matrix: Today/heatmap 10s. */
 const POLL_MS = 10_000
@@ -152,11 +153,8 @@ function buildValue(
     liveState?.cameras[0] ??
     null
 
-  // Null-safe: never invent demo numbers — null / — until EdgeSight answers.
-  // Prefer per-cam live/state (frame-synced) over store aggregate.
-  const peopleNow: number | null = online
-    ? (primaryCameraState?.counts.people_now ?? live?.people_now ?? live?.net_occupancy ?? null)
-    : null
+  // Present is active tracks on a fresh snapshot. Day-rollup occupancy is not a KPI.
+  const peopleNow: number | null = online ? presentFromTracks(live) : null
   const queueLength: number | null = online
     ? (primaryCameraState?.queues?.[0]?.queue_length ?? live?.queue_length ?? null)
     : null
@@ -252,20 +250,18 @@ function buildValue(
           : "EdgeSight offline · start Docker on :8000 — UI stays — / 0 / nil until then",
       }
 
-  const snapEng = primaryCameraState?.engagement ?? live?.engagement
-  // Prefer per-cam tripwire from live/state — matches YOLO HUD; avoid poisoned store day SUM.
-  const entriesNum: number | null = online
-    ? (primaryCameraState?.counts.tripwire_in_cumulative ??
-        live?.per_camera?.find((c) => c.camera_id === primaryCameraId)?.in_count ??
-        live?.total_visitors ??
-        null)
-    : null
-  const exitsNum: number | null = online
-    ? (primaryCameraState?.counts.tripwire_out_cumulative ??
-        live?.per_camera?.find((c) => c.camera_id === primaryCameraId)?.out_count ??
-        live?.total_exits ??
-        null)
-    : null
+  const snapEng = live?.models?.enrichment === false ? null : (primaryCameraState?.engagement ?? live?.engagement)
+  const crossing = sessionCrossing(
+    online ? live : null,
+    primaryCameraState
+      ? {
+          inn: primaryCameraState.counts.tripwire_in_cumulative,
+          out: primaryCameraState.counts.tripwire_out_cumulative,
+        }
+      : null,
+  )
+  const entriesNum: number | null = crossing.inn
+  const exitsNum: number | null = crossing.out
 
   const tripwireCountEarly = countTripwires(configs)
   const needsEntranceTripwire =
@@ -280,25 +276,29 @@ function buildValue(
       live && live.avg_dwell_seconds != null
         ? formatDwell(live.avg_dwell_seconds)
         : "—",
-    engagedRatio: eng
-      ? `${Math.round(eng.avg_engaged_ratio * 100)}%`
-      : snapEng?.engaged_ratio != null
-        ? `${Math.round(snapEng.engaged_ratio * 100)}%`
-        : null,
-    facingRatio: eng
-      ? `${Math.round(eng.avg_facing_ratio * 100)}%`
-      : snapEng?.facing_ratio != null
-        ? `${Math.round(snapEng.facing_ratio * 100)}%`
-        : null,
+    engagedRatio: (() => {
+      if (live?.models?.enrichment === false) return null
+      const ratio = engagementRatio(live) ?? snapEng?.engaged_ratio
+      if (ratio != null) return `${Math.round(Number(ratio) * 100)}%`
+      return eng ? `${Math.round(eng.avg_engaged_ratio * 100)}%` : null
+    })(),
+    facingRatio:
+      live?.models?.enrichment === false
+        ? null
+        : eng
+          ? `${Math.round(eng.avg_facing_ratio * 100)}%`
+          : snapEng?.facing_ratio != null
+            ? `${Math.round(snapEng.facing_ratio * 100)}%`
+            : null,
   }
 
   const heroFlow: HeroFlow = {
     entriesIn: entriesNum,
     peoplePresent: peopleNow,
     exitsOut: exitsNum,
-    entriesPath: "live/state · tripwire_in  (session / pass)",
-    presentPath: "live/state · people_now  (active tracks)",
-    exitsPath: "live/state · tripwire_out  (session / pass)",
+    entriesPath: "live.tripwires[].in_count (session, not day rollup)",
+    presentPath: "live.track_ids (active tracks = people boxes)",
+    exitsPath: "live.tripwires[].out_count (session, not day rollup)",
     needsEntranceTripwire,
   }
 
@@ -585,19 +585,14 @@ export function EdgeSightProvider({ children }: { children: ReactNode }) {
         const cam =
           data.state?.cameras.find((c) => c.camera_id === primaryId) ??
           data.state?.cameras[0]
-        const people =
-          cam?.counts.people_now ?? data.live.people_now ?? data.live.net_occupancy
+        const people = presentFromTracks(data.live)
+        const cross = sessionCrossing(data.live, {
+          inn: cam?.counts.tripwire_in_cumulative,
+          out: cam?.counts.tripwire_out_cumulative,
+        })
         if (typeof people === "number" && Number.isFinite(people)) {
-          const inn =
-            cam?.counts.tripwire_in_cumulative ??
-            data.live.per_camera?.find((c) => c.camera_id === primaryId)?.in_count ??
-            data.live.total_visitors ??
-            0
-          const out =
-            cam?.counts.tripwire_out_cumulative ??
-            data.live.per_camera?.find((c) => c.camera_id === primaryId)?.out_count ??
-            data.live.total_exits ??
-            0
+          const inn = cross.inn ?? 0
+          const out = cross.out ?? 0
           setLiveHistory((prev) => {
             const next = [
               ...prev,

@@ -19,6 +19,7 @@ import { RetailIntelligenceDrawer } from "../../components/RetailIntelligenceDra
 import { JourneyHealth } from "../../components/JourneyHealth"
 import { ModelsStatusPanel } from "./Pipeline"
 import { displayMetric } from "../../lib/data-freshness"
+import { coachLine } from "../../lib/live-kpis"
 
 type PanelId = "video" | "calib" | "ops" | "models"
 
@@ -84,22 +85,6 @@ function OpsFrame({
       </div>
     </Panel>
   )
-}
-
-function coachLine(present: number | null, inn: number | null, out: number | null, needsEntrance: boolean): string {
-  if (present != null && present > 0 && needsEntrance) {
-    return "People visible — mark an entrance tripwire to count entries."
-  }
-  if (present != null && present > 0 && (inn ?? 0) === 0 && (out ?? 0) === 0) {
-    return "People visible — mark an entrance tripwire to count entries."
-  }
-  if (present != null && present === 0 && (inn ?? 0) === 0) {
-    return "Floor looks empty right now — watch the video; Present should rise when someone walks in."
-  }
-  if ((inn ?? 0) > 0 || (out ?? 0) > 0) {
-    return "In and Out move only when someone crosses the entrance line you drew."
-  }
-  return "Present is who is on camera now. In / Out need an entrance line."
 }
 
 export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
@@ -397,7 +382,7 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
               />
               <LiveSegment
                 title="Present"
-                brief="People on camera right now — should move with the boxes."
+                brief="People boxes on this frame — one per active track."
                 value={edge.heroFlow.peoplePresent}
                 empty={!live || edge.heroFlow.peoplePresent == null}
               />

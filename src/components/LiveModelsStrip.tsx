@@ -70,15 +70,13 @@ export function LiveModelsStrip() {
           const st = (m.status || "").toUpperCase()
           run = st === "LIVE" ? "ON" : st === "PACKED" || st === "PARTIAL" ? "WAITING" : "OFF"
         }
-        // Live snapshot detector wins for person-detect keys
+        // The detector actually loaded on this frame is ON. The other person finder is OFF.
         if (online && liveDetector && (m.key === "yolo26n" || m.key === "rfdetr")) {
+          const det = liveDetector.toLowerCase()
           const hit =
-            liveDetector.toLowerCase().includes(m.key.replace("yolo26n", "yolo")) ||
-            liveDetector.toLowerCase().includes(m.name.split(" ")[0].toLowerCase()) ||
-            (m.key === "yolo26n" && /yolo/i.test(liveDetector)) ||
-            (m.key === "rfdetr" && /rf-?detr/i.test(liveDetector))
-          if (hit) run = "ON"
-          else if (run === "ON") run = "WAITING"
+            (m.key === "yolo26n" && /yolo/i.test(det)) ||
+            (m.key === "rfdetr" && /rf-?detr/i.test(det))
+          run = hit ? "ON" : "OFF"
         }
         // Pose / RTMPose ON when live snapshot reports pose wired
         if (online && livePoseOn && m.key === "rtmpose") {
@@ -102,7 +100,9 @@ export function LiveModelsStrip() {
           What is watching this store
         </p>
         <p className="mt-0.5 font-inter cosmic-text-xs text-[var(--app-faint)]">
-          Each row is one installed model — job in plain English, status from the edge stack, and which number it feeds.
+          {online && liveDetector
+            ? `Running now: ${liveDetector}. That model feeds Present. Other rows are installed and not the live detector.`
+            : "The running detector appears when the camera is on. Nothing is invented here."}
         </p>
       </header>
 

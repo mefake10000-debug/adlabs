@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Video } from "lucide-react"
 import { edgeSightStreamPath } from "../lib/edgesight"
 import { displayMetric } from "../lib/data-freshness"
+import { presentFromTracks, sessionCrossing } from "../lib/live-kpis"
 import { useEdgeSightOptional } from "../hooks/useEdgeSight"
 import { Label } from "../app/ui"
 
@@ -40,13 +41,17 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
   const camState = edge?.liveState?.cameras.find((c) => c.camera_id === cam)
   const streamSrc = useMemo(() => edgeSightStreamPath(cam), [cam])
 
-  const people = camState?.counts.people_now ?? live?.people_now ?? live?.net_occupancy ?? null
+  const crossing = sessionCrossing(online ? live : null, {
+    inn: camState?.counts.tripwire_in_cumulative,
+    out: camState?.counts.tripwire_out_cumulative,
+  })
+  const people = presentFromTracks(online ? live : null)
   const queue =
     camState?.queues?.[0]?.queue_length ??
-    live?.queue_length ??
+    (live?.source === "live_snapshot" ? live?.queue_length : null) ??
     null
-  const entriesIn = camState?.counts.tripwire_in_cumulative
-  const entriesOut = camState?.counts.tripwire_out_cumulative
+  const entriesIn = crossing.inn
+  const entriesOut = crossing.out
 
   return (
     <div

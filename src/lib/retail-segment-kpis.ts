@@ -8,6 +8,7 @@ import {
   type SegmentKpiDef,
   type SegmentMaturity,
 } from "../data/retail-segments"
+import { liveProducts } from "./live-kpis"
 
 type CalibratedZoneRow = { id: string; name: string; type: string }
 
@@ -94,7 +95,7 @@ export function resolveSegmentKpis(
   const dwell = dwellZones(live, state, calibrated)
   const ranked = rankZones(dwell)
   const occupied = dwell.filter((z) => (z.occupancy ?? 0) > 0)
-  const products = live?.products_top ?? null
+  const products = liveProducts(live)
   const topProduct = products && products.length ? products[0] : null
   const journey = live?.journey
   const entrance = entranceOf(live)

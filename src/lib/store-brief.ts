@@ -4,6 +4,7 @@
  */
 
 import type { EdgeSightLive } from "./edgesight"
+import { engagementRatio } from "./live-kpis"
 
 export type JourneyStageRow = {
   id: string
@@ -72,9 +73,9 @@ export function buildStoreBrief(input: StoreBriefInput): string[] {
   }
 
   const q = live.queue_length
-  if (q != null) {
+  if (q != null && q > 0) {
     const wait = live.avg_queue_wait_seconds
-    const alert = live.queue_alert_active ? " · congestion alert on" : " · no congestion alert"
+    const alert = live.queue_alert_active ? " · congestion alert on" : ""
     const waitBit = wait != null && wait > 0 ? ` · avg wait ${fmtNum(wait)}s` : ""
     bullets.push(`Queue ${fmtNum(q)}${waitBit}${alert}.`)
   }
@@ -84,7 +85,7 @@ export function buildStoreBrief(input: StoreBriefInput): string[] {
     const s = journey.summary
     const deadLabels = (journey.stages || [])
       .filter((st) => st.dead_zone || st.status === "dead_zone")
-      .map((st) => st.label)
+      .map((st) => st.retail_label || st.label)
       .slice(0, 3)
     const deadBit = deadLabels.length ? ` (${deadLabels.join(", ")})` : ""
     bullets.push(
@@ -97,15 +98,12 @@ export function buildStoreBrief(input: StoreBriefInput): string[] {
   }
 
   const dwell = live.avg_dwell_seconds
-  const engaged = live.engagement?.engaged_ratio
+  const engaged = engagementRatio(live)
   if (dwell != null && dwell > 0) {
-    const eng =
-      engaged != null && Number.isFinite(engaged)
-        ? ` · engaged ratio ${Number(engaged).toFixed(2)}`
-        : ""
+    const eng = engaged != null ? ` · engaged ratio ${engaged.toFixed(2)}` : ""
     bullets.push(`Avg dwell ${fmtNum(dwell)}s${eng}.`)
-  } else if (engaged != null && Number.isFinite(engaged)) {
-    bullets.push(`Engaged ratio ${Number(engaged).toFixed(2)} (dwell not yet reported).`)
+  } else if (engaged != null) {
+    bullets.push(`Engaged ratio ${engaged.toFixed(2)} (dwell not yet reported).`)
   }
 
   if (live.source) {
