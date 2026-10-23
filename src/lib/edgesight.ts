@@ -42,11 +42,22 @@ export type EdgeSightLive = {
     infer_every_n?: number
     enrichment?: boolean
     pose?: boolean
+    rtmpose?: boolean
+    rtmpose_backend?: string | null
+    overlay_box_style?: string
     face_boxes?: boolean
     face_identity?: boolean
     products?: boolean
     note?: string
   } | null
+  /** Per-person foot points for tripwire/dwell (id, foot, dwell_s). */
+  tracks?: {
+    id: number
+    foot: [number, number] | number[]
+    dwell_s: number
+    bbox?: number[]
+    stationary?: boolean
+  }[]
   engagement?: {
     avg_attention_score?: number | null
     facing_ratio?: number | null

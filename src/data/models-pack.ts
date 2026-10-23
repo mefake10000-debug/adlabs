@@ -112,11 +112,11 @@ export const MODELS_EXISTING: ModelCard[] = [
 export const MODELS_NEXT: ModelCard[] = [
   {
     id: "rtmpose",
-    name: "RTMPose-t/s/m ONNX (rtmlib)",
-    role: "Pose fall-candidate",
-    unlocks: "SAFETY_FALL_CANDIDATE_POSE → PARTIAL when weights + slow-tier wire",
-    status: "next",
-    statusLabel: "PACKED stub · phase-2 dry-run",
+    name: "RTMPose-t/s ONNX (rtmlib)",
+    role: "Ankle / foot pose",
+    unlocks: "Red foot mark · skeleton · tripwire/dwell ground point (LIVE when ONNX + edge load)",
+    status: "partial",
+    statusLabel: "LIVE when packed · ENABLE_RTMPOSE",
   },
   {
     id: "shelf-gap-geometry",
@@ -178,9 +178,9 @@ export const MODELS_NEXT: ModelCard[] = [
     id: "pose-ankles",
     name: "Pose ankle foot-points",
     role: "Zone grounding",
-    unlocks: "Wire existing YOLO26m pose ankles into floor zones (no new weight)",
+    unlocks: "RTMPose ankles (preferred) or YOLO pose → track.foot_point; bbox bottom-center fallback",
     status: "partial",
-    statusLabel: "Top 5 · wire existing pose",
+    statusLabel: "Wired · OVERLAY_BOX_STYLE=foot",
   },
   {
     id: "ntp-sync",
@@ -533,7 +533,7 @@ export const FULL_SCOPE_MATRIX: ScopeRow[] = [
 ]
 
 export const PIPELINE_STAGES = [
-  { step: "1", title: "Detect", detail: "YOLO26s person boxes on each camera" },
+  { step: "1", title: "Detect", detail: "YOLO26 person detect → foot / skeleton overlay" },
   { step: "2", title: "Track", detail: "ByteTrack IDs · dwell & crossings" },
   { step: "3", title: "Zones / queues", detail: "Polygons · tripwires · heatmap cells · staff tags" },
   { step: "4", title: "Enrichment", detail: "Pose · YuNet · age/gender k-anon · head facing · YOLO-World · groups" },

@@ -21,7 +21,7 @@ type Props = {
 }
 
 /**
- * Classic YOLO-demo pane: MJPEG with person/staff/zone/tripwire overlays from EdgeSight.
+ * Live MJPEG from EdgeSight: red foot marks (default), optional skeleton/parallel/aabb boxes, zones & tripwires.
  * Numbers beside it come from the shared EdgeSightProvider (live_snapshot / live/state).
  */
 export function LiveVision({ cameraId, className = "", compact = false, videoOnly = false }: Props) {

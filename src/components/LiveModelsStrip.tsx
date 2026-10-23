@@ -50,6 +50,9 @@ export function LiveModelsStrip() {
   }, [edge?.online, edge?.status?.fetchedAt])
 
   const liveDetector = edge?.status?.live?.models?.person_detector ?? null
+  const livePoseOn = Boolean(
+    edge?.status?.live?.models?.rtmpose || edge?.status?.live?.models?.pose,
+  )
   const online = Boolean(edge?.online)
 
   const rows = useMemo(() => {
@@ -77,9 +80,13 @@ export function LiveModelsStrip() {
           if (hit) run = "ON"
           else if (run === "ON") run = "WAITING"
         }
+        // Pose / RTMPose ON when live snapshot reports pose wired
+        if (online && livePoseOn && m.key === "rtmpose") {
+          run = "ON"
+        }
         return { ...m, run_state: run }
       })
-  }, [stack?.models, online, liveDetector])
+  }, [stack?.models, online, liveDetector, livePoseOn])
 
   return (
     <section
