@@ -66,7 +66,7 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
           </p>
           <p className="truncate font-inter cosmic-text-sm font-semibold text-[var(--app-text)]">
             {online
-              ? `${live?.models?.person_detector ?? "Person detector"} · boxes follow people`
+              ? `${live?.models?.person_detector ?? "Person detector"} · red foot + trail follow people`
               : "Camera offline"}
           </p>
         </div>
@@ -105,7 +105,7 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
 
           {!videoOnly && (
             <div className={`grid gap-2 p-4 sm:grid-cols-2 ${compact ? "grid-cols-2 xl:grid-cols-4" : "xl:grid-cols-1"}`}>
-              <Stat label="People now" value={displayMetric(people)} hint="Active tracks · matches boxes" />
+              <Stat label="People now" value={displayMetric(people)} hint="Person tracks only · objects excluded" />
               <Stat
                 label="Queue"
                 value={displayMetric(queue)}
