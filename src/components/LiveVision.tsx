@@ -158,27 +158,10 @@ export function LiveVision({ cameraId, className = "", compact = false, videoOnl
                   ))}
                 </div>
               )}
-              {!compact && live?.floor_view && (
-                <div className="sm:col-span-2 xl:col-span-1 space-y-1">
-                  <Label>Camera collaboration</Label>
-                  <p className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
-                    {live.floor_view.status} · {live.floor_view.camera_count} cameras · {live.floor_view.mapped_shared_zone_count} shared zones
-                  </p>
-                  {(live.floor_view.shared_zones ?? []).slice(0, 3).map((zone) => (
-                    <p key={zone.store_zone_id} className="font-mono cosmic-text-2xs text-[var(--app-sub)]">
-                      {zone.store_zone_id}: {zone.camera_ids.join(" + ")} · {zone.status}
-                      {zone.deduplicated_occupancy != null ? ` · ${zone.deduplicated_occupancy} people` : " · separate counts"}
-                    </p>
-                  ))}
-                  <p className="font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
-                    {live.floor_view.note ?? live.fusion?.gate_reason ?? "Each angle stays separate until its shared floor zone is calibrated."}
-                  </p>
-                </div>
-              )}
               {!compact && (
                 <p className="sm:col-span-2 xl:col-span-1 font-inter cosmic-text-2xs leading-relaxed text-[var(--app-faint)]">
                   {live?.models?.note ??
-                    "Face boxes (if on) feed k-anon age/gender only — no face ID. Soft ReID / cross-cam IDs = Future. Tripwire & staff zones: Set up zones."}
+                    "Boxes are people tracks. In/Out need an entrance line in Set up zones."}
                 </p>
               )}
             </div>
