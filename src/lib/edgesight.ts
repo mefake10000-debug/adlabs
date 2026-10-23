@@ -122,6 +122,36 @@ export type EdgeSightLive = {
       note?: string
     }
   } | null
+  /** Buffet / retail path layout health — optional; 0 defaults when absent. */
+  journey?: {
+    metaphor?: string
+    schema?: string
+    stages: {
+      id: string
+      label: string
+      retail_label?: string | null
+      calibrated: boolean
+      status: string
+      dead_zone: boolean
+      visits: number
+      occupancy: number
+      avg_dwell_seconds: number
+      traction_score?: number
+      zone_ids?: string[]
+      zone_names?: string[]
+      how_to_implement?: string
+      setup_href?: string
+      tags?: string[]
+    }[]
+    summary?: {
+      stage_count: number
+      calibrated: number
+      missing: number
+      dead_zone: number
+      live: number
+    }
+    note?: string
+  } | null
 }
 
 export type EdgeSightSummary = {
