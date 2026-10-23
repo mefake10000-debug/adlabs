@@ -163,8 +163,19 @@ export function LiveOps({ initialPanel }: { initialPanel?: PanelId } = {}) {
     setTab(initial)
     if (initial === "ops") setAdvancedOpen(true)
     if (typeof window === "undefined") return
-    const q = new URLSearchParams(window.location.search)
-    if (q.get("segment") || q.get("retail") === "1" || q.get("industry")) {
+    const url = new URL(window.location.href)
+    // Retired industry verticals must not expand Retail intelligence.
+    if (url.searchParams.has("industry")) {
+      url.searchParams.delete("industry")
+      window.history.replaceState({}, "", url.toString())
+    }
+    try {
+      window.localStorage.removeItem("adlabs.live.industry")
+    } catch {
+      /* ignore */
+    }
+    const q = url.searchParams
+    if (q.get("segment") || q.get("retail") === "1") {
       setMoreOpen(true)
     }
   }, [initialPanel])

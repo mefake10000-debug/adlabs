@@ -31,15 +31,20 @@ const ICONS: Record<RetailSegmentId, typeof DoorOpen> = {
   shelf: MonitorSmartphone,
 }
 
+function softMapLegacyIndustry(raw: string | null): RetailSegmentId | null {
+  // Silent remap only — never opens the drawer or keeps ?industry= in the URL.
+  if (raw === "restaurant" || raw === "jewelry") return "dwell"
+  if (raw === "manufacturing" || raw === "fashion") return "shelf"
+  return null
+}
+
 function readSegment(): RetailSegmentId {
   if (typeof window === "undefined") return "entrance"
-  const q = new URLSearchParams(window.location.search).get("segment")
+  const params = new URLSearchParams(window.location.search)
+  const q = params.get("segment")
   if (isRetailSegmentId(q)) return q
-  // Legacy industry= query → soft-map into closest floor role (never show industry UI).
-  const legacy = new URLSearchParams(window.location.search).get("industry")
-  if (legacy === "restaurant" || legacy === "jewelry") return "dwell"
-  if (legacy === "manufacturing") return "shelf"
-  if (legacy === "fashion") return "shelf"
+  const legacyMapped = softMapLegacyIndustry(params.get("industry"))
+  if (legacyMapped) return legacyMapped
   try {
     const stored = window.localStorage.getItem(RETAIL_SEGMENT_STORAGE_KEY)
     if (isRetailSegmentId(stored)) return stored
@@ -188,8 +193,15 @@ export function RetailIntelligenceDrawer({
   useEffect(() => {
     setSegment(readSegment())
     if (typeof window === "undefined") return
-    const q = new URLSearchParams(window.location.search)
-    if (q.get("retail") === "1" || q.get("segment")) setOpen(true)
+    const url = new URL(window.location.href)
+    if (url.searchParams.has("industry")) {
+      url.searchParams.delete("industry")
+      window.history.replaceState({}, "", url.toString())
+    }
+    // Only intentional retail deep links expand; legacy ?industry= stays closed.
+    if (url.searchParams.get("retail") === "1" || url.searchParams.get("segment")) {
+      setOpen(true)
+    }
   }, [])
 
   const select = useCallback((id: RetailSegmentId) => {

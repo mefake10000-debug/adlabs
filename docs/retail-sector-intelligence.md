@@ -37,7 +37,8 @@ Edge also emits `retail_roles` (honest maturity map). Deprecated `industry` fash
 - One segment switcher inside the Retail intelligence drawer (collapsed by default)
 - Each segment: title · one-line promise · 2–3 quiet KPIs (— / 0 / nil) · FUTURE chips
 - Persist: `localStorage` `adlabs.live.retailSegment` + `?segment=entrance|path|dwell|queue|staff|shelf`
-- Legacy `?industry=` soft-maps into a floor role; industry UI removed
+- Legacy `?industry=` is stripped from the URL on load (silent soft-map only; never expands Retail intelligence)
+- IndustryModesPanel / cross-industry playbook removed from Live hub
 - Badge spam removed from default KPI tiles (header owns connectivity clock)
 
 ## Click URLs

@@ -8,7 +8,9 @@ import type { JourneyBlock, JourneyStageRow } from "../lib/store-brief"
 type Props = {
   journey: JourneyBlock | null | undefined
   online: boolean
-  /** Optional slot — Live hub uses RetailIntelligenceDrawer for segments. */
+  /** Optional action-row slot (e.g. retail deep-link chip). */
+  actionSlot?: ReactNode
+  /** @deprecated Use actionSlot — industry vertical UI is retired. */
   industrySlot?: ReactNode
 }
 
@@ -24,9 +26,10 @@ function statusLabel(s: JourneyStageRow): string {
   return "Missing"
 }
 
-export function JourneyHealth({ journey, online, industrySlot }: Props) {
+export function JourneyHealth({ journey, online, actionSlot, industrySlot }: Props) {
   const stages = journey?.stages ?? []
   const summary = journey?.summary
+  const slot = actionSlot ?? industrySlot
 
   return (
     <Panel
@@ -34,7 +37,7 @@ export function JourneyHealth({ journey, online, industrySlot }: Props) {
       sub="Path stages from zone tags. Values stay 0 until zones match stage tags."
       action={
         <div className="flex flex-wrap items-center gap-2">
-          {industrySlot}
+          {slot}
           <Chip tone={online && stages.length ? "live" : "neutral"}>
             {online ? (journey?.metaphor ?? "retail path") : "offline"}
           </Chip>
