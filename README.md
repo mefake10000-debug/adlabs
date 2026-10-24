@@ -145,3 +145,12 @@ All numbers are **simulated** — no real client data.
 - [ ] Swap mock KPIs/funnel with real API endpoints
 - [ ] Attach `adlabs.in` domain in Vercel
 - [ ] Add analytics (Plausible/GA) if desired
+# AD Labs Website and Dashboard
+
+This repository contains the independent Next.js marketing site and dashboard. It does not import EdgeSight Python model code or load model weights. Product/marketing content lives in `src/site/`; dashboard screens/components live in `src/app/`; the Next.js App Router is the repository-root `app/` folder.
+
+The dashboard’s current analytics are a preview marked **Demo**. The Edge processing panel reports local worker state and camera freshness separately. It does not turn sample charts into live metrics.
+
+Local processing control is documented in [`docs/dashboard-processing-control.md`](docs/dashboard-processing-control.md). It works only with `npm run dev` on the same computer as EdgeSight, a loopback `EDGESIGHT_API_URL`, and server-only `EDGESIGHT_API_KEY`. Hosted production/Vercel pages cannot control a remote store edge machine.
+
+Checks: `npm test`, `npm run lint`, and `npm run build`.

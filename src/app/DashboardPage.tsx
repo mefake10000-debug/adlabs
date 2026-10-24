@@ -29,6 +29,7 @@ import { Ads } from "./screens/Ads"
 import { PresentMode } from "./PresentMode"
 import { VoiceAssistant } from "./VoiceAssistant"
 import { CmdPalette } from "./CmdPalette"
+import { ProcessingControl } from "./ProcessingControl"
 
 type Screen = "overview" | "storefront" | "stores" | "store" | "campaigns" | "zones" | "brief" | "manager" | "compare" | "history" | "demographics" | "product" | "alerts" | "tour" | "ads"
 type Role = "Brand" | "Store"
@@ -306,7 +307,7 @@ export function DashboardPage() {
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "#8B7CF6" }} />
                   {now && now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: false })}
                 </span>
-                <Chip tone="live">Live</Chip>
+                <Chip tone="neutral">Preview</Chip>
                 <Chip tone="gold" title={SIMULATED_NOTE}>
                   Demo
                 </Chip>
@@ -362,6 +363,7 @@ export function DashboardPage() {
           </header>
 
           <main className="px-5 py-6 sm:px-7 sm:py-8">
+            <ProcessingControl />
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={screen + role}
