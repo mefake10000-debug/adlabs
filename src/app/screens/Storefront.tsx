@@ -21,7 +21,7 @@ export function Storefront() {
         <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(18,18,18,0.85) 0%, rgba(18,18,18,0.5) 55%, rgba(18,18,18,0.15) 100%)" }} />
         <div className="relative flex min-h-[260px] flex-col justify-between p-7 sm:p-10">
           <div className="flex items-center gap-2">
-            <Chip tone="live">Live</Chip>
+            <Chip tone="gold">Sample preview</Chip>
             <Chip tone="gold">{SIMULATED_NOTE}</Chip>
           </div>
           <div>
@@ -58,8 +58,8 @@ export function Storefront() {
       <Panel
         title="Stop rate · W1 → Wk 16 (predicted)"
         action={<Chip tone="gold">Prediction</Chip>}
-        verified="12 weeks measured"
-        info="Solid = measured weekly average · dashed = 8-week projection, band = confidence."
+        verified="Illustrative sample"
+        info="Example weekly series · dashed = illustrative projection, band = example range."
       >
         <LineChart
           data={trendData}
@@ -75,7 +75,7 @@ export function Storefront() {
           height={200}
         />
         <div className="mt-4 flex flex-wrap gap-3">
-          <span className="font-inter cosmic-text-xs text-[var(--app-faint)]">Actual trend: 9.2% → 11.4% over 12 weeks</span>
+          <span className="font-inter cosmic-text-xs text-[var(--app-faint)]">Example trend: 9.2% → 11.4% across 12 sample weeks</span>
           <span className="font-inter cosmic-text-xs font-semibold font-num" style={{ color: "var(--app-pos)" }}>Projected 12.0% by Wk 16</span>
         </div>
       </Panel>

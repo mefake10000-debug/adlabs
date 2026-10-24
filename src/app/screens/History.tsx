@@ -52,7 +52,7 @@ export function History() {
       <Panel
         title="Stop rate · W1 → Wk 16 (predicted)"
         action={<Chip tone="gold">Prediction</Chip>}
-        verified="12 weeks measured"
+        verified="Illustrative sample"
         info="Each dot = one week's average stop rate. Dashed line = 8-week forecast."
       >
         <LineChart

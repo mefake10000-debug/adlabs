@@ -20,7 +20,7 @@ export function Ads() {
       {/* River: saw → entered → zone → converted */}
       <Panel
         pad={false}
-        verified="Match without identity"
+        verified="Sample attribution · no live link"
         info="Statistical match between pedestrians on the ad's sightline and store entries — anonymous counts, never individuals."
       >
         <div className="border-b border-[var(--app-line)] p-6 sm:p-7">
@@ -63,7 +63,7 @@ export function Ads() {
         {ADS.map((ad) => {
           const best = ad.redirect.reduce((a, b) => (b.pct > a.pct ? b : a))
           return (
-            <Panel key={ad.id} title={ad.name} action={<Chip tone="gold">{ad.channel}</Chip>} verified="Attributed · 7-day window">
+            <Panel key={ad.id} title={ad.name} action={<Chip tone="gold">{ad.channel}</Chip>} verified="Example · not attributed live">
               <div className="flex items-start gap-3">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl" style={{ background: "var(--app-raise)", color: "var(--app-gold)" }}>
                   <MapPin size={16} strokeWidth={2} />

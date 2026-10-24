@@ -62,8 +62,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Chip tone="live">Live</Chip>
-          <Chip tone="neutral" title={SIMULATED_NOTE}>Demo</Chip>
+          <Chip tone="gold" title={SIMULATED_NOTE}>Sample data</Chip>
         </div>
       </div>
 
@@ -79,7 +78,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
             />
             <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[var(--app-bg)] via-[var(--app-bg)]/72 to-transparent" />
             <div className="absolute left-0 right-0 top-4 flex flex-wrap items-center gap-2 px-6">
-              <Chip tone="live">Live now</Chip>
+              <Chip tone="gold">Sample preview</Chip>
               <Chip tone="neutral">{TENANT.store}</Chip>
               <Chip tone="gold">WK 12 · FOUNDING PILOT</Chip>
             </div>
@@ -256,7 +255,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
 
       {/* Chart + funnel */}
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <Panel title="Street footfall" action={<Label>by hour · {period}</Label>} verified="Edge video">
+        <Panel title="Street footfall" action={<Label>by hour · {period}</Label>} verified="Illustrative sample">
           <AreaChart data={TRAFFIC_HOURS} peaks={[{ from: "15", to: "17" }]} />
         </Panel>
         <Panel title="Physical funnel" action={<Label>{period}</Label>}>
@@ -296,7 +295,7 @@ export function Overview({ onNavigate }: { onNavigate?: (screen: string) => void
         <Panel
           title="Window reset"
           action={<Label>{AFT_CAMPAIGN.window}</Label>}
-          verified="14-day A/B"
+          verified="Sample scenario"
         >
           <div className="flex flex-col gap-5">
             <div>

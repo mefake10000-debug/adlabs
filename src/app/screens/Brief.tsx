@@ -68,7 +68,7 @@ export function Brief() {
 
       <Panel
         title="Evidence · anonymised frames"
-        verified="Blur at the edge"
+        verified="Sample preview · no connected footage"
         info="Three frames from the floor, blurred on-device before the brief is assembled."
       >
         <div className="grid grid-cols-3 gap-4">

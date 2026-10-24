@@ -29,7 +29,7 @@ export function Product() {
           { label: "Avg stop rate", value: INDUSTRY_OVERVIEW.avgStopRate, delta: "+0.8pp", tone: "pos" as const },
           { label: "Avg conversion", value: INDUSTRY_OVERVIEW.avgConversion, delta: "+2.1pp", tone: "pos" as const },
           { label: "Top performer", value: "Fashion", delta: INDUSTRY_OVERVIEW.topPerformer, tone: "pos" as const },
-          { label: "Sectors tracked", value: `${INDUSTRY_OVERVIEW.totalSectors}`, delta: "all live", tone: "flat" as const },
+          { label: "Sectors shown", value: `${INDUSTRY_OVERVIEW.totalSectors}`, delta: "sample data", tone: "flat" as const },
         ] as { label: string; value: string; delta: string; tone: "pos" | "neg" | "flat" }[]).map((k) => (
           <div key={k.label} className="rounded-xl border border-[var(--app-line)] p-3.5" style={{ background: "color-mix(in srgb, var(--app-card) 100%, transparent)" }}>
             <p className="font-inter cosmic-text-2xs font-bold uppercase tracking-[0.12em] text-[var(--app-faint)]">{k.label}</p>

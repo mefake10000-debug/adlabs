@@ -77,7 +77,7 @@ export function PresentMode({ theme, onClose }: { theme: "light" | "dark"; onClo
                 <FunnelBars stages={FUNNEL.week} />
               </div>
               <p className="mt-6 font-inter cosmic-text-sm text-[var(--app-faint)]">
-                Every stage is measured on the store's edge device — pass, stop, enter, explore, engage.
+                Example journey only — pass, stop, enter, explore, engage. These values are not measured from a connected store.
               </p>
             </div>
           )}
@@ -90,7 +90,7 @@ export function PresentMode({ theme, onClose }: { theme: "light" | "dark"; onClo
               </p>
               <div className="mt-8 flex gap-3">
                 <span className="rounded-full px-4 py-2 font-inter cosmic-text-xs font-bold font-num" style={{ background: "var(--app-gold-soft)", color: "var(--app-gold)" }}>6.4% → 7.3% capture</span>
-                <span className="rounded-full px-4 py-2 font-inter cosmic-text-xs font-bold font-num" style={{ background: "color-mix(in srgb, var(--app-pos) 12%, transparent)", color: "var(--app-pos)" }}>+14.6% uplift · verified 14-day A/B</span>
+                <span className="rounded-full px-4 py-2 font-inter cosmic-text-xs font-bold font-num" style={{ background: "color-mix(in srgb, var(--app-pos) 12%, transparent)", color: "var(--app-pos)" }}>+14.6% example uplift · sample A/B</span>
               </div>
             </div>
           )}

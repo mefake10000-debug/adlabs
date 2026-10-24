@@ -42,9 +42,12 @@ export function ProcessingControl() {
   }, [])
 
   useEffect(() => {
-    void refresh()
+    const initialRefresh = window.setTimeout(() => void refresh(true), 0)
     const timer = window.setInterval(() => void refresh(true), 5000)
-    return () => window.clearInterval(timer)
+    return () => {
+      window.clearTimeout(initialRefresh)
+      window.clearInterval(timer)
+    }
   }, [refresh])
 
   const runAction = async (action: "start" | "stop") => {

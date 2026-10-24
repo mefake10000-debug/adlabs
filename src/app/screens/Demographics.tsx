@@ -1,5 +1,5 @@
 import { Users } from "lucide-react"
-import { Panel, Label, ScreenHeader } from "../ui"
+import { Panel, Label, ScreenHeader, Chip } from "../ui"
 import { DonutChart, HBars } from "../charts"
 import { DEMOGRAPHICS, SIMULATED_NOTE, PEER_NOTE } from "../../data/dashboard"
 
@@ -11,14 +11,16 @@ export function Demographics() {
         icon={Users}
         eyebrow="Consumer intelligence"
         title="Demographics"
-        sub="Aggregated visitor composition · minimum 10 individuals per cohort."
-      />
+        sub="Sample visitor-composition charts for preview only; no camera-derived demographic results are connected."
+      >
+        <Chip tone="gold" title={SIMULATED_NOTE}>Sample data</Chip>
+      </ScreenHeader>
 
       <div className="grid gap-5 xl:grid-cols-3">
         <Panel
           title="Gender split"
           action={<Label>today</Label>}
-          info="Anonymised gender inference — no identity, aggregated only."
+          info="Illustrative chart only. No gender inference is being performed by this preview."
         >
           <DonutChart
             data={[
@@ -28,7 +30,7 @@ export function Demographics() {
             size={160}
           />
           <p className="mt-4 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            Female attention peaks at the hero vitrine; male dwells longer in transit.
+            Example narrative only — not a finding about current visitors.
           </p>
         </Panel>
 

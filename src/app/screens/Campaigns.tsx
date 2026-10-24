@@ -17,7 +17,7 @@ export function Campaigns() {
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={Target} eyebrow="Physical A/B" title="Campaigns" sub="Physical A/B: what you changed in the window — and what the street did next.">
-        <Chip tone="gold">12-week arc</Chip>
+        <Chip tone="gold">Sample scenario · 12 weeks</Chip>
       </ScreenHeader>
 
       <Panel title="Stop rate · W1 → W12" action={<Label>WINDOW EVENTS MARKED</Label>}>
@@ -70,14 +70,14 @@ export function Campaigns() {
         </svg>
       </Panel>
 
-      {/* How video becomes verified data */}
-      <Panel title="How the video becomes verified text data" action={<Label>Frame → Measurement → Decision</Label>}>
+      {/* Explain intended flow without implying this sample is connected to a camera. */}
+      <Panel title="Example video-to-measurement flow" action={<Label>Illustrative · not connected</Label>}>
         <div className="grid gap-3 sm:grid-cols-4">
           {[
-            { step: "01", title: "Edge capture", desc: "Storefront camera sees the window. Face pixels are never uploaded." },
-            { step: "02", title: "Anonymised aggregate", desc: "People become counts: pass, stop, enter, dwell. No identities, no frames stored." },
-            { step: "03", title: "Text verdict", desc: "The engine writes what the street did: stop rate 6.4% → 7.3%, gaze 8.4s → 9.6s." },
-            { step: "04", title: "Verified decision", desc: "14-day rotation. Uplift beats baseline by +14.6% — keep or kill is a judgment, not a guess." },
+            { step: "01", title: "Select a source", desc: "An operator chooses an authorized camera or video for a processing session." },
+            { step: "02", title: "Measure on the edge", desc: "The configured pipeline can produce supported counts and zone events while processing is running." },
+            { step: "03", title: "Check the evidence", desc: "Review the real session, camera, timestamp, model health, and data freshness before interpreting metrics." },
+            { step: "04", title: "Use a sample result", desc: "The percentages and campaign figures on this page are illustrative examples, not results from a connected store." },
           ].map((s) => (
             <div key={s.step} className="relative rounded-2xl border border-[var(--app-line)] p-4">
               <span className="font-mono cosmic-text-xs font-bold text-[var(--app-gold)]">{s.step}</span>
@@ -89,7 +89,7 @@ export function Campaigns() {
         <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-[var(--app-line)] p-3.5">
           <ShieldCheck size={14} className="shrink-0 text-[var(--app-gold)]" strokeWidth={2.2} />
           <p className="font-inter cosmic-text-xs leading-snug text-[var(--app-sub)]">
-            Privacy contract: video is processed on the store's edge device. Only aggregated metrics leave the store — the before/after frames you see here are consent-blurred previews.
+            This page is a static product preview. It is not connected to camera footage, POS data, or an edge device.
           </p>
         </div>
       </Panel>
@@ -110,7 +110,7 @@ export function Campaigns() {
                   style={{ background: "color-mix(in srgb, var(--app-pos) 12%, transparent)", color: "var(--app-pos)" }}
                 >
                   <BadgeCheck size={11} strokeWidth={2.6} />
-                  VERIFIED
+                  SAMPLE
                 </span>
               )}
             </div>
@@ -147,7 +147,7 @@ export function Campaigns() {
             className="rounded-full px-2.5 py-1 font-inter cosmic-text-2xs font-bold"
             style={{ background: "var(--app-gold-soft)", color: "var(--app-gold)" }}
           >
-            ENGINE-GENERATED
+            EXAMPLE RECOMMENDATION
           </span>
         }
       >

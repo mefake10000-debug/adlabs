@@ -15,8 +15,8 @@ export function Stores({ onOpen }: { onOpen: (id: string) => void }) {
 
       <Panel
         pad={false}
-        verified="Composite grade · measured over 7 days"
-        info="Rank per store · click a row to open the live day view."
+        verified="Sample portfolio"
+        info="Example store ranking · figures are sample data, not a live day view."
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left">
@@ -90,7 +90,7 @@ export function StoreDetail({ storeId }: { storeId: string }) {
         <div>
           <h1 className="font-inter cosmic-text-xl font-bold tracking-[-0.01em] text-[var(--app-text)]">{s.name}</h1>
           <p className="mt-0.5 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            {s.city} · Live day view · Edge device online
+            {s.city} · Sample day view · no edge connection
           </p>
         </div>
         <GradePill grade={s.grade} />

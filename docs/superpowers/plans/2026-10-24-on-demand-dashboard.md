@@ -1,5 +1,7 @@
 # On-Demand Dashboard Control Implementation Plan
 
+> This is the planning record, not the status source of truth. Current implementation and verification are in [`docs/dashboard-processing-control.md`](../../dashboard-processing-control.md); the full cross-repository handoff is maintained in the EdgeSight worktree at `docs/handoff/foundation-audit.md`. Do not interpret unchecked planning boxes as current status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add clear local Start/Stop/status controls to the existing dashboard without presenting sample dashboard metrics as live EdgeSight data.

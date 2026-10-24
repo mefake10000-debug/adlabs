@@ -11,7 +11,7 @@ export function Alerts() {
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={ShieldAlert} eyebrow="Operations" title="Alerts" sub={`${ALERTS.length} active · sorted by severity.`}>
-        <Chip tone="live">Live</Chip>
+        <Chip tone="gold">Sample alerts</Chip>
       </ScreenHeader>
 
       {/* Filter chips */}

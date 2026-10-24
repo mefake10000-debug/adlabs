@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "oxlint",
+    "lint": "oxlint src app tests",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {

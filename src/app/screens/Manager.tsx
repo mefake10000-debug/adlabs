@@ -23,7 +23,7 @@ export function Manager() {
   return (
     <div className="flex flex-col gap-5">
       <ScreenHeader icon={ClipboardList} eyebrow="Store manager view" title="Today" sub={`${m.store} · ${m.date}`}>
-        <Chip tone="live">Live</Chip>
+        <Chip tone="gold">Sample preview</Chip>
         <Chip tone="gold" title={SIMULATED_NOTE}>Demo</Chip>
       </ScreenHeader>
 
@@ -36,7 +36,7 @@ export function Manager() {
         <div>
           <p className="font-inter cosmic-text-sm leading-relaxed text-[var(--app-text)]">{m.alert}</p>
           <p className="mt-1 font-inter cosmic-text-xs text-[var(--app-faint)]">
-            Verified on the edge device · aggregate counts only · no identities retained
+            Example only · not verified on an edge device
           </p>
         </div>
       </div>
@@ -47,7 +47,7 @@ export function Manager() {
           <AreaChart data={TRAFFIC_HOURS} peaks={[{ from: "15", to: "17" }]} height={190} />
           <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--app-line)] pt-3">
             <span className="inline-flex items-center gap-1.5 font-inter cosmic-text-xs text-[var(--app-faint)]">
-              <Video size={13} className="text-[var(--app-gold)]" /> Edge video verified
+              <Video size={13} className="text-[var(--app-gold)]" /> Sample traffic series
             </span>
             <span className="font-inter cosmic-text-xs text-[var(--app-faint)]">Counts anonymised · faces never leave device</span>
           </div>
@@ -91,7 +91,7 @@ export function Manager() {
 
       {/* Zones image + flag */}
       <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
-        <Panel title="Floor zones · live" pad={false}>
+        <Panel title="Floor zones · sample" pad={false}>
           <img
             src="/images/in-store-zones.jpg"
             alt="In-store zones"
@@ -136,7 +136,7 @@ export function Manager() {
       <Panel
         title="Staffing intelligence · this week"
         action={<Label>1 STAFF / 800 PEAK HOUR</Label>}
-        info="Staff per day from measured footfall + hot hours. Peak = where walk-ins cluster."
+        info="Illustrative staffing suggestion based on sample traffic values; not measured staff activity."
       >
         {/* Summary strip */}
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">

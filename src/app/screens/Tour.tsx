@@ -66,7 +66,7 @@ const DATA_CLASSES = [
 const TIMELINE = [
   {
     phase: "Day 1",
-    chip: "Live from the first camera",
+    chip: "Available after camera setup",
     items: [
       "Your storefront hero — footfall, stop rate, walk-ins, dwell, dead zones",
       "Today's curve with the peak band",
@@ -117,7 +117,7 @@ export function Tour() {
       </div>
 
       {/* Owner interface preview */}
-      <Panel pad={false} verified="Live preview · sample data">
+      <Panel pad={false} verified="Sample preview">
         <div className="border-b border-[var(--app-line)] p-6 sm:p-7">
           <div className="flex items-center gap-3">
             <span
@@ -157,7 +157,7 @@ export function Tour() {
                   <p className="font-inter cosmic-text-2xs text-[var(--app-faint)]">Owner view · {TENANT.store}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Chip tone="live">Live</Chip>
+                  <Chip tone="gold">Sample</Chip>
                   <Chip tone="gold">Demo</Chip>
                 </div>
               </div>

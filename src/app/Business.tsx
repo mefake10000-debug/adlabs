@@ -12,7 +12,7 @@ const ICONS: Record<string, typeof Wallet> = {
 
 export function BusinessKpis() {
   return (
-    <Panel title="Business on the floor" action={<Label>sales-linked</Label>} verified="POS · anonymous join">
+    <Panel title="Business on the floor" action={<Label>Sample figures</Label>} verified="Illustrative only">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {BUSINESS_KPIS.map((k) => {
           const Icon = ICONS[k.iconHint] ?? Wallet
@@ -63,7 +63,7 @@ export function OccupancyGauge({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <Panel title="Live occupancy" action={<Label>{o.level}%</Label>}>
+    <Panel title="Sample occupancy" action={<Label>{o.level}% · example</Label>}>
       <div className="flex flex-col items-center py-2">
         <svg width="120" height="120" viewBox="0 0 100 100" className="-rotate-90">
           <circle cx="50" cy="50" r={r} fill="none" stroke="var(--app-grid)" strokeWidth="9" />

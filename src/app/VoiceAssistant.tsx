@@ -4,11 +4,12 @@ import {
   KPIS, TRAFFIC_HOURS, STORES, ZONES, CAMPAIGNS, ALERTS,
   PREDICTIONS, WEEKLY_HISTORY, INSIGHTS, TENANT,
 } from "../data/dashboard"
+import { formatDemoAnswer } from "../lib/demo-copy"
 
 type Screen = "overview" | "storefront" | "stores" | "store" | "campaigns" | "zones" | "brief" | "manager" | "compare" | "history" | "demographics" | "product" | "alerts" | "tour" | "ads"
 type Msg = { role: "user" | "ai"; text: string; screen?: Screen; storeId?: string; storeName?: string }
 
-/* ---------------- Intent engine over REAL dashboard data ---------------- */
+/* ---------------- Intent engine over sample dashboard fixtures ---------------- */
 function answer(q: string): { text: string; screen?: Screen; storeId?: string } {
   const t = q.toLowerCase()
 
@@ -52,7 +53,7 @@ function answer(q: string): { text: string; screen?: Screen; storeId?: string } 
 
   // Greets
   if (/^(hi|hey|hello|namaste)/.test(t)) {
-    return { text: `Namaste! I have live numbers for ${TENANT.name}. Ask me: "how busy is today", "what's the Mumbai store doing", "worst zone", "did the campaign work", "top alert", or "predictions".`, screen: "overview" }
+    return { text: `Namaste! I can show sample numbers for ${TENANT.name}. Ask me: "how busy is today", "what's the Mumbai store doing", "worst zone", "did the campaign work", "top alert", or "predictions".`, screen: "overview" }
   }
 
   // How busy / footfall today
@@ -163,10 +164,10 @@ function answer(q: string): { text: string; screen?: Screen; storeId?: string } 
 
   // Did you / what can you do
   if (t.includes("can you do") || t.includes("help") || t.includes("what") && t.includes("do")) {
-    return { text: `I answer from your live data — footfall, stop rate, walk-ins, dwell, zones, campaigns, alerts, predictions. Try: "how busy is today", "worst zone", "did the campaign work", "predictions", "open alerts".` }
+    return { text: `I can explain the sample dashboard data — footfall, stop rate, walk-ins, dwell, zones, campaigns, alerts, predictions. Try: "how busy is today", "worst zone", "did the campaign work", "predictions", "open alerts".` }
   }
 
-  return { text: "I know the live numbers, but not that exact phrasing. Try asking with a metric: footfall, stop rate, dwell, zones, history, predictions, alerts, ads, or say a screen to jump there." }
+  return { text: "I can explain the sample numbers, but not that exact phrasing. Try asking with a metric: footfall, stop rate, dwell, zones, history, predictions, alerts, ads, or say a screen to jump there." }
 }
 
 /* ---------------- Voice helpers ---------------- */
@@ -231,6 +232,7 @@ export function VoiceAssistant({ onNavigate }: { onNavigate: (s: Screen, storeId
     if (!q) return
     setMsgs((m) => [...m, { role: "user", text: q }])
     const res = answer(q)
+    res.text = formatDemoAnswer(res.text)
     setTimeout(() => {
       setMsgs((m) => [...m, { role: "ai", text: res.text, screen: res.screen }])
       speak(res.text)
@@ -358,7 +360,7 @@ export function VoiceAssistant({ onNavigate }: { onNavigate: (s: Screen, storeId
             </div>
             <p className="mt-2.5 flex items-center gap-1.5 border-t border-[var(--app-line)] pt-2.5 font-inter cosmic-text-2xs text-[var(--app-faint)]">
               <CornerDownLeft size={10} />
-              Answers come from your live data · voice uses your browser's on-device speech engine
+              Sample dashboard figures only · voice input uses your browser's on-device speech engine
             </p>
           </div>
         </div>

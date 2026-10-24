@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
-import { ArrowDownRight, ArrowUpRight, Minus, CircleHelp, BadgeCheck, Info } from "lucide-react"
+import { ArrowDownRight, ArrowUpRight, Minus, CircleHelp, Info } from "lucide-react"
 
 export function ScreenHeader({
   icon: Icon,
@@ -107,12 +107,12 @@ export function InfoTip({ text }: { text: string }) {
 export function VerifiedTag({ note }: { note: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-inter cosmic-text-2xs font-bold"
-      style={{ background: "color-mix(in srgb, var(--app-pos) 10%, transparent)", color: "var(--app-pos)" }}
+      aria-label="Data note"
+      className="inline-flex max-w-[14rem] items-center rounded-full px-2 py-0.5 font-inter cosmic-text-2xs font-semibold leading-tight"
+      style={{ background: "var(--app-gold-soft)", color: "var(--app-gold)" }}
       title={note}
     >
-      <BadgeCheck size={11} strokeWidth={2.6} />
-      VERIFIED
+      <span className="truncate">{note}</span>
     </span>
   )
 }
